@@ -1,0 +1,20 @@
+using Pkg
+using Pkg; Pkg.status()
+Pkg.add("CSV")
+Pkg.add("DataFrames")
+Pkg.add("DataFrameMacros")
+Pkg.add("Chain")
+Pkg.add("TimeZones")
+Pkg.add("Pipe")
+Pkg.add("Plots")
+Pkg.add("StatsBase")
+Pkg.add("RData")
+Pkg.add("ScikitLearn")
+Pkg.add("DecisionTree")
+Pkg.add("CategoricalArrays")
+Pkg.add("MLJBase")
+Pkg.add("JLD2")
+Pkg.add("AbstractTrees")
+#Pkg.add(PackageSpec(name="AbstractTrees", version="0.4.3")) #Need this version
+Pkg.add("XGBoost")
+
