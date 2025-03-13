@@ -1,0 +1,139 @@
+---
+title             : "Validation of quantifying infant all-day restrianed experiences at home using inertial sensors"
+shorttitle        : "Quantify infant restrained time with sensors"
+author: 
+  - name          : "XX"
+    affiliation   : "1"
+    corresponding : XX    # Define only one corresponding author
+    address       : "UC Riverside Department of Psychology, 900 University Avenue, Riverside, CA 92521"
+    email         : "XX"
+  - name          : "XX"
+    affiliation   : "1"
+      
+authornote: |
+  XX
+abstract: |
+  XX
+  
+keywords          : "infant, restraint, everyday experiences, inertial sensors, machine learning"
+wordcount         : "XX"
+bibliography      : "master.bib"
+floatsintext      : no
+linenumbers       : no
+draft             : no
+mask              : no
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+biblio-style      : "apa"
+classoption       : "man"
+output:
+  papaja::apa6_pdf:
+    citation_package: biblatex
+header-includes:
+  - \raggedbottom
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+library(papaja)
+library(knitr)
+library(patchwork)
+library(scales)
+library(ggforce)
+library(hms)
+library(tidyverse)
+library(lubridate)
+library(rstatix)
+```
+
+```{r analysis-preferences}
+set.seed(2025)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+# pos_levels <- c("Supine", "Prone", "Sitting", "Upright", "Held")
+# pal <-  c("#E69F00","#56B4E9", "#009E73","#F0E442", "#0072B2") %>% 
+#   set_names(pos_levels)
+
+# theme_update(text = element_text(size = 14),
+#              axis.text.x = element_text(size = 14, color = "black"), 
+#              axis.title.x = element_text(size = 16),
+#              axis.text.y = element_text(size = 14,  color = "black"), 
+#              axis.title.y = element_text(size = 16), 
+#              panel.background = element_blank(),panel.border = element_blank(), 
+#              panel.grid.major = element_blank(),
+#              panel.grid.minor = element_blank(), axis.line = element_blank(), 
+#              legend.key = element_rect(fill = "white")) 
+```
+
+During infancy, babies’ daily activities are largely decided by caregivers. When caregivers give infants freedom to move, infants have more autonomy over their activities, including practicing locomotor skills, exploring novel areas, and approach appealing targets. However, when caregivers restrain infants’ movement, infants have fewer choices about where they can go, what they can see or touch. Daily restraint practices include holding infants in arms and putting infants in devices like strollers, highchairs, car seats, exersaucers, etc. Being restrained has immediate impact on infant body movement, as well as cascading effect on infant language, visual, and whole-body learning experiences due to its constraint on infant learning context. Previous research has made endeavors to quantify infant daily restrained experiences, either by retrospective parental report or momentarily phone survey. However, both methods are subjected to report bias and lack time granularity. Therefore, the goal of this paper is to propose a new system utilizing inertial movement units (IMUs) to precisely quantify infant whole-day restrained experiences at home, overcoming previous methods’ limitations by collecting objective and continuous movement data.
+
+<!-- I find it hard to connect between the two paragraphs. Also, I give up on subtitles, because I can’t say much about “temporary delay in motor development” -->
+
+Restraint has effects on various domains of infant development. Previous research have found that restraint causes temporary delay in motor development (Abbott & Bartlett, 2001; Bartlett & Fanning, 2003; Carson et al., 2022; Pin et al., 2007). Infants need extensive practices on daily basis to master new motor skills (Adolph et al., 2012; XXX). But restraining infants deprive them of opportunities to practice motor skills or even move body parts (e.g., spine, legs, hip) (Siddicky et al., 2020). Beyond that, restraint alters infant visual learning experiences. For example, being seated in chairs probably limits walking infants’ visual field, but it may provide new visual experiences for infants who cannot sit straight (Franchak et al., 2018; Kretch et al., 2014; Luo & Franchak, 2020). Restraint also alters infant language learning experiences. For example, seated in devices is correlated to less consistent and less amount of adult language infants can hear (Malachowski et al., 2023). Additionally, restraint also alters infant manual exploration experiences, helping them to focus on a subgroup of objects from distractors (XXX). Therefore, given the extended effects of infant daily restrained experiences, it is important to quantify infants’ restrained experiences for whole-day long at home environment.
+
+## Review of existing methods for measuring restraint
+
+In the existing literature, retrospective parental report and ecological momentary assessment (EMA) are two commonly used methods to quantify infant daily restrained experiences. In most of the retrospective parental report studies, parents were asked to estimate the average daily restrained time of the infant (Abbott & Bartlett, 2001; Bartlett & Kneale Fanning, 2003; Callahan & Sisler, 1997; Carson et al., 2022; Hesketh et al., 2015; Karasik et al., 2018; Siddicky et al., 2020). Despite its widespread use, this method is high demanding for parents’ memory considering it is hard to track and remember every bout of restraint practice and then report an overall time estimation. There is an exception where researchers asked mothers to reflect on the previous day’s restraint practice every five minutes, which added more precision in estimation (Karasik et al., 2018). However, these methods are still sensitive to memory loss and thus not reliable in providing objective data. The recently developed method EMA lessens parents’ memory burden by making quick phone-survey prompts to parents a few times (e.g., 10 or 12 times) randomly throughout a day, asking infant body activities at the moment (Franchak, 2019; Franchak, Kadooka, et al., 2024; Malachowski et al., 2023). The total time proportion of infant being restrained during a day is then extrapolated based on the frequency of being restrained among all the prompts. 
+
+However, there are still shared limitations between the two methods. First, no matter whether the survey happens later or at the moment, they both rely on parental report, and thus are constrained by the parent’s presence with the infant. If the parent is systematically not aware of the infant’s certain activity (e.g., the caregiver is not at home in the afternoons), the report might not be fully representative of infant everyday experiences. Thus, a method not relied on parental report is needed. Second, both methods lack time granularity in quantifying infant daily restrained experiences. When is the infant restrained the most? Is there any time-sequence pattern in infant restrained experiences? These questions call for a method with higher time-resolution.
+
+Measuring with IMUs has the promising potential to overcome these limitations. IMUs, light-weight sensors that can be tucked in special infant garments, can record infant body movement at home in an unobtrusive way. The sample rate of XX Hz allows for second-by-second observation of infant movement. The battery life of XX hours allows for whole-day long recording. An IMUs system, usually comprised of 3 to 4 sensors fixed in certain body places, records the fine-grained data of linear and angular acceleration for each sensor at every moment. The whole-day-long sensors’ data is impossible for humans to interpret and annotate painlessly. Thus, machine learning process is needed to help automatically classify movement categories. The IMUs system (i.e., sensors plus machine learning algorithms) has been validated in categorizing adults’ activities (XXX), children’s activities (XXX), and infants’ activities (XXX). However, no study before has validated the automatic classification of infant restrained status based on IMUs data, which is the primary goal of the current study. 
+
+## Current Study
+
+Given the limitations in current methods in quantifying infant restrained experiences, and the potential of using sensors, the overall goal of this study is to evaluate the validity of using IMUs to automatically classify infant restrained status at home in a whole-day-long recording.
+
+The current study uses the same system as in Franchak et al. (2024) with four IMUs embedded in infant leggings, two on knees and two on ankles. This IMUs system has been validated for classifying infant body position with accuracy of XXX. However, the automatic classification of infant restrained status remains to be a challenge. Consider an infant sitting on a couch independently versus an infant sitting on a highchair restrained; or an infant lying supine unrestrained versus an infant being tucked in cradle restrained; or an infant standing independently versus an infant being held in arms upright yet not moving; etc. Some forms of restrained activities might be hard to distinguish from unrestrained ones, if merely based on the infant’s knees and ankles’ movement data. 
+
+The IMUs system is tested by a total of XX sessions from XX infants who were aged from 7 to 14 months, covering a wide range from pre-sitting infants to walking infants. The sessions have an average recording time of XX hours (*SE* = XX). Sensors’ linear and angular acceleration at every moment is the raw data input, and human annotation of infant restrained status from the first 1.5-hour video is the ground truth data for the supervised machine learning classification.
+
+To validate the IMUs system, we will first compare the supervised machine learning models’ prediction with human annotation results for the first 1.5-hour of the sessions. We will use the leave-one-out cross validation method (XXX): Leave one study session each time as test data and have the rest sessions as training data, and evaluate the model’s performance on the test data. Thus, the first aim of this study is to assess the models’ overall accuracy in predicting infant restrained status in the first 1.5-hour into the session. Afterwards, a new group model will be trained by feeding in all sessions’ human annotation results. We will then evaluate the group model’s performance on predicting infant whole-day-long restrained status, where no video is available. If the model preforms well, the estimation of the time proportion infant spent restrained should show similar pattern as previous studies. For example, infants spend less time restrained with age (XXX). Thus, the second aim of this study is to assess the group model’s prediction by testing the age-related change in infant restrained time proportion.
+
+
+<!-- Haven't revised the following part -->
+# Methods
+## Participants
+Our dataset is composed by infants from two non-overlapping age groups: XX infants (XX% female) from a younger group aged 4-7 months old and XX infants (XX% female) from an older group aged 11-14 months old. For each participant, we aimed to collect data monthly for consecutive four months. For example, we aimed to have younger infants participated when they were 4, 5, 6, and 7 months old). However, not all participants joined the study when they were 4 or 11 months old and some of them missed some sessions for various reasons, ending up with XX infants contributing to only one session and XX infants contributing to 2~4 sessions. We collected in total XX sessions from the younger group (age range from XX to XX mos) and XX sessions from the older group (age range from XX to XX mos). Caregivers reported the onset dates of the infant’s locomotor milestone in a structured survey (Adolph et al., 2003). We then categorized each session based on infants’ current locomotor status as non-sitters (n = XX), sitters (n = XX), crawlers (n = XX), and walkers (n = XX). See Figure XX for the whole data set distribution. Caregivers reported the infants’ race as as White (n = XX), African American (n = XX), Asian (n = XX), more than one (n = XX), or not fitting into the above races or chose not to answer (n = XX). There is no difference in sex, race, or ethnicity between the two age groups (ps >= XX). Families were recruited from Southern California via social media and community recruitment events, and received $30 for compensation for each visit. Caregivers consented before each session of the study. The whole procedures were approved by the University of California, Riverside Institutional Review Board.
+<!-- split something here into different sections -->
+At each session, we instructed caregivers to use recording devices without the presence of experimenters at the home. Four inertial movement units (IMUs) sewn in special leggings were used to record movement features (e.g., linear and rotational accelerations) of infants’ right thigh, left thigh, right ankle, and left ankle separately, at a sample rate of 62.5 Hz, for a whole day (Figure XX). A camera was used to record a 3-hour video at the beginning of each session of the infant’s activities for later human annotation.
+
+## Procedure
+
+## Data Processing
+
+### Human Annotation of Restriant
+
+### Machine Learning Classification of Restraint
+
+### Validation Plan
+
+# Results
+
+## Data Sharing
+
+## XXX
+
+# Discussion
+
+
+\newpage
+
+# Declarations
+
+## Funding 
+
+## Competing Interests 
+
+## Ethics Approval
+
+## Consent
+
+## Data, Material and Code availability 
+
+\newpage
+
+<!-- # References -->
+
+::: {#refs custom-style="Bibliography"}
+:::
