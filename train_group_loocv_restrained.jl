@@ -3,7 +3,7 @@ using CategoricalArrays, MLJBase, DecisionTree
 using CSV, DataFrames, DataFrameMacros, Chain, Statistics, RData
 
 # Load compiled data from R
-objs = RData.load("compiled_data_restrained.RData") 
+objs = RData.load("data_compiled/compiled_data_restrained_4s.RData") 
 ds = objs["slide_filt"]
 
 # Pull the ids to set up the LOOCV analysis
@@ -18,6 +18,22 @@ metrics = DataFrame("id" => ids, "overall_acc" => -.01)
 # Loop through each of the ids to fit a model
 # Threads.@threads will run the loop on individual CPU cores
 # Just remove it and start the line at "for" to run sequentially on a single CPU core
+
+# Decide to include position features or not
+with_pos = 1
+# with_pos = 0
+
+# Decide window size
+window = 4
+# window = 30
+
+# Get position features column number
+if window == 4
+    pos_num = 5 # the last 5 columns are position featurs
+else
+    pos_num = 25
+end
+
 Threads.@threads for i in eachindex(ids)
     id = ids[i]
     println("Fitting $id")
@@ -25,6 +41,15 @@ Threads.@threads for i in eachindex(ids)
     # Partition the data into training (everyone but current id) and testing (current id)
     training = @subset(ds, :id != id)
     testing =  @subset(ds, :id == id)
+    
+    # Decide to include position features or not
+    if with_pos == 1
+    else
+        training = training[:,1:end-pos_num]
+        testing = testing[:,1:end-pos_num]
+    end
+
+    # println("training #val: $(size(training,2))")
 
     # Make sure there are no rows with missing data
     training = dropmissing(training)
@@ -44,10 +69,11 @@ Threads.@threads for i in eachindex(ids)
     code_actual = MLJBase.coerce(testing[:,"code"], Multiclass)
 
     # Calculate accuracy and store in the dataframe
-    accuracy = MLJBase.accuracy(code_predicted, code_actual)
+    # accuracy = MLJBase.accuracy(code_predicted, code_actual) -- This code does not work: UndefVarError: `accuracy` not defined in `MLJBase`
+    accuracy = sum(code_predicted .== code_actual) / length(code_actual)
     metrics[i, :overall_acc] = accuracy
     println("id: $id; accuracy: $accuracy")
 end
 
 # Save to file
-CSV.write("metrics_restrained.csv", metrics)
+CSV.write("metrics_restrained_4_pos.csv", metrics)
