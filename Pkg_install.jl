@@ -17,4 +17,5 @@ Pkg.add("JLD2")
 Pkg.add("AbstractTrees")
 #Pkg.add(PackageSpec(name="AbstractTrees", version="0.4.3")) #Need this version
 Pkg.add("XGBoost")
+Pkg.add("StatisticalMeasures")
 
