@@ -18,22 +18,26 @@ theme_update(text = element_text(size = 14),
 ds_30_pos <- read_csv("metrics_restrained_30_pos.csv") %>% 
   mutate(id = ifelse(str_detect(id, "-"), format(as.Date(id, format="%d-%b"),"%m/%d"),id)) %>% 
   arrange(id) %>% 
-  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred)
+  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred) %>% 
+  mutate(sens = 1-sens, spec = 1-spec, posi = 1-posi)
 
 ds_30_no_pos <- read_csv("metrics_restrained_30_no_pos.csv") %>% 
   mutate(id = ifelse(str_detect(id, "-"), format(as.Date(id, format="%d-%b"),"%m/%d"),id)) %>% 
   arrange(id)%>% 
-  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred)
+  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred) %>% 
+  mutate(sens = 1-sens, spec = 1-spec, posi = 1-posi)
 
 ds_4_pos <- read_csv("metrics_restrained_4_pos.csv") %>% 
   mutate(id = ifelse(str_detect(id, "-"), format(as.Date(id, format="%d-%b"),"%m/%d"),id)) %>% 
   arrange(id)%>% 
-  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred)
+  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred) %>% 
+  mutate(sens = 1-sens, spec = 1-spec, posi = 1-posi)
 
 ds_4_no_pos <- read_csv("metrics_restrained_4_no_pos.csv") %>% 
   mutate(id = ifelse(str_detect(id, "-"), format(as.Date(id, format="%d-%b"),"%m/%d"),id)) %>% 
   arrange(id)%>% 
-  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred)
+  rename(id=id, acc=overall_acc, sens=overall_sens, spec=overall_spec, posi=overall_posi_pred) %>% 
+  mutate(sens = 1-sens, spec = 1-spec, posi = 1-posi)
 
 # human coded 146 sessions. There are only 139 sessions for 30s models, and 126 sessions for 4s models.
 # check which sessions are missing
