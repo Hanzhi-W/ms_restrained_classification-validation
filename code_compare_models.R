@@ -108,19 +108,53 @@ t.test(ds_merge$posi_30_no_pos, ds_merge$posi_4_no_pos, paired = TRUE, alternati
 
 
 # Plot
-# scatter plot
-for (ind in c("acc","sens","spec","posi")){
-  plot <- ggplot(data=ds_long, 
-                 aes_string(x="model", y=ind, group="id", color="id"))+
-          geom_point()+
-          geom_line()+
-          geom_text(data = ds_long %>% filter(model=="ds4nopos"),
-                    aes(label = id), hjust = -0.2)+
-          theme_minimal() +
-          labs(x = "model", y = ind, color = "id") +
-          theme(legend.position = "none")
-  ggsave(paste("figure/",ind,".eps",sep=""), width = 5, height = 10)
-}
+# scatter plot with line connecting same session
+
+facet <- data_frame(id = ds_merge$id,facet = rep(1:6,length.out = nrow(ds_merge)))
+
+ds_long <- left_join(ds_long, facet, by="id")
+
+ggplot(data=ds_long, aes(x=model, y=acc, group=id, color=id))+
+  geom_point()+
+  geom_line()+
+  geom_text(data = ds_long %>% filter(model=="ds4nopos"),
+            aes(label = id), hjust = -0.2, size=1.5)+
+  theme_update() +
+  labs(x = "model", y = "acc") +
+  theme(legend.position = "none")+
+  facet_wrap(~ facet)
+# ggsave("figure/acc_across_models.eps", width = 15, height = 20)
+
+
+# for (ind in c("acc","sens","spec","posi")){
+#   plot <- ggplot(data=ds_long, 
+#                  aes_string(x="model", y=ind, group="id", color="id"))+
+#           geom_point()+
+#           geom_line()+
+#           geom_text(data = ds_long %>% filter(model=="ds4nopos"),
+#                     aes(label = id), hjust = -0.2)+
+#           theme_minimal() +
+#           labs(x = "model", y = ind, color = "id") +
+#           theme(legend.position = "none")
+#   ggsave(paste("figure/",ind,".eps",sep=""), width = 5, height = 10)
+# }
+
+# accuracy mean~range plot
+ds_acc <- ds_long %>% 
+  group_by(id) %>% 
+  summarize(acc_mean = mean(acc),
+            acc_min = min(acc),
+            acc_max = max(acc)) %>% 
+  mutate(id = reorder(factor(id), acc_mean))
+
+ggplot(data = ds_acc, aes(x=id, y=acc_mean))+
+  geom_errorbar(aes(ymin = acc_min, ymax = acc_max)) + 
+  geom_point(size = 3, color = "red") +
+  labs(x = "Mean of accuracy", y = "Session (Ordered by Range)") +
+  theme_update()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("figure/acc_variability.eps", width = 30, height = 10)
 
 # bar plot
 ds_long_error_bar <- ds_long2 %>% 
