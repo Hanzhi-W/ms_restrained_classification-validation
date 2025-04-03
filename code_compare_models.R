@@ -172,3 +172,34 @@ ggplot(data = ds_long_error_bar, aes(x=ind, y=mean, fill=model))+
       theme_update()+
       labs(x = "index", y = "value", color = "model")
 ggsave(paste("figure/barplot.eps",sep=""), width = 10, height = 5)
+
+# examine each bad session
+# read in files
+session <- "123_1"
+good_model <- "predict_30_no_pos"
+bad_model <- "predict_4_pos"
+pred_good <- read_csv(paste(good_model,"/",session, "_predict.csv", sep=""))
+pred_bad <- read_csv(paste(bad_model,"/",session, "_predict.csv", sep=""))
+actual_good <- read_csv(paste(good_model,"/",session, "_actual.csv", sep="")) %>% 
+  mutate(ref=ifelse(ref==1,2,1)) %>% 
+  select(-pool)
+actual_bad <- read_csv(paste(bad_model,"/",session, "_actual.csv", sep="")) %>% 
+  mutate(ref=ifelse(ref==1,2,1)) %>% 
+  select(-pool)
+# re-calculate accuracy
+accuracy_good <- mean(pred_good$ref == actual_good$ref)
+accuracy_bad <- mean(pred_bad$ref == actual_bad$ref)
+# plot bad model timeline
+merge_bad <- bind_cols(pred_bad, actual_bad)
+merge_bad$time = 1:nrow(merge_bad)
+colnames(merge_bad) <- c("pool","predict","actual","time")
+long_bad <- pivot_longer(data = merge_bad, cols=c(predict,actual), names_to = "source", values_to = "category")
+
+ggplot(data = long_bad, aes(x=time, y=category, color = source)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Time", y = "Categorization: 1=restrained", title = "Time Series Plot") +
+  theme_update()
+ggsave(paste("figure/bad_sessions_timeline/",session,".png",sep=""),width=10, height=5)  
+
+
