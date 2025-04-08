@@ -4,7 +4,7 @@ using CSV, DataFrames, DataFrameMacros, Chain, Statistics, RData
 
 ############# BEFORE RUNNING DIFFERENT BATCHES, MODIFY:
 # Load compiled data from R
-objs = RData.load("data_compiled/compiled_data_restrained_4s.RData") 
+objs = RData.load("data_compiled/compiled_data_restrained_16s.RData") 
 # objs = RData.load("data_compiled/compiled_data_restrained.RData") 
 ds = objs["slide_filt"]
 
@@ -12,19 +12,21 @@ ds = objs["slide_filt"]
 # subfolder = "predict_30_pos"
 # subfolder = "predict_30_no_pos"
 # subfolder = "predict_4_pos"
-subfolder = "predict_4_no_pos"
+# subfolder = "predict_4_no_pos"
+subfolder = "predict_16_no_pos"
 
 # Decide to include position features or not. 1=include, 0=not include
 with_pos = 0
 
 # Current window size. 30s or 4s.
-window = 4
+window = 16
 
 # File name for saving matrix
 # save_file = "metrics_restrained_30_pos.csv"
 # save_file = "metrics_restrained_30_no_pos.csv"
 # save_file = "metrics_restrained_4_pos.csv"
-save_file = "metrics_restrained_4_no_pos.csv"
+# save_file = "metrics_restrained_4_no_pos.csv"
+save_file = "metrics_restrained_16_no_pos.csv"
 ####################################################
 
 # Set seed for random forest
@@ -45,8 +47,10 @@ metrics = DataFrame("id" => ids, "overall_acc" => -.01, "overall_sens" => -.01, 
 # Get # column of position features
 if window == 30
     pos_num = 25 # the last 25 columns are position featurs
-else
+elseif window == 4
     pos_num = 5
+else
+    pos_num = 0
 end
 
 # Loop through each of the ids to fit a model
