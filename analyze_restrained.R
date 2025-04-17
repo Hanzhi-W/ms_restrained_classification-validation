@@ -1,4 +1,3 @@
-## need to be modified
 library(tidyverse)
 library(timetk)
 library(here)
@@ -21,11 +20,14 @@ theme_update(text = element_text(size = 20),
   # set_names(pos_levels)
 
 # load data
-synced_ppts <- read_csv("/Volumes/padlab/study_imu_long/code/project_status/project_dashboard.csv") %>% 
-  mutate(id_uni = str_glue("{id}/{session}")) %>% 
-  mutate(unique_id = paste0(id,"/",session)) %>% 
-  filter(infant_unr == 2) %>% 
-  filter (id != 104)
+# synced_ppts <- read_csv("/Volumes/padlab/study_imu_long/code/project_status/project_dashboard.csv") %>% 
+#   mutate(id_uni = str_glue("{id}/{session}")) %>% 
+#   mutate(unique_id = paste0(id,"/",session)) %>% 
+#   filter(infant_unr == 2) %>% 
+#   filter (id != 104)
+
+# load data from local
+load("whole-model-prediction.RData")
 
 # function
 read_unrestrained <- function(temp_id) {
@@ -64,7 +66,12 @@ session_wholemodel_have <- ds_sum$unique_id
 setdiff(session_loocv_have, session_wholemodel_have)
 setdiff(session_wholemodel_have, session_loocv_have)
 
-# outliers
+# plot to see if any outliers
+ggplot(ds_sum, aes(x = age_group, y = unrestrained_prop)) +
+  geom_boxplot() + 
+  geom_point(position = position_jitter(width = .1), size = 4, color = "red", shape = 1) + 
+  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+# pick out outliers
 # 178/3, younger min, 0.04
 # 148/2, younger max, 0.85
 # 181/3, older min, 0.25
