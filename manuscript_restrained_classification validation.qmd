@@ -1,0 +1,160 @@
+---
+title: "Validation of quantifying infant all-day restrained experiences at home using inertial sensors"
+blank-lines-above-title: 2
+shorttitle: "Quantify infant restrained time with sensors"
+fig-dpi: 300
+execute: 
+  echo: false
+  warning: false
+  error: false
+  cache: false
+author:
+  - name: XX
+    orcid: XX
+    email: XX
+    affiliations:
+      - id: id1
+        name: University of California, Riverside
+        department: Department of Psychology
+  - name: XX
+    corresponding: true
+    orcid: XX
+    email: XX
+    affiliations:
+      - id: id1
+        name: University of California, Riverside
+        department: Department of Psychology
+      
+author-note:
+  blank-lines-above-author-note: 1
+  # Disclosures condensed to one paragraph, but you can start a field with two line breaks to break them up: \n\nNew Paragraph
+  disclosures:
+    # Example: This study was registered at ClinicalTrials.gov (Identifier NTC998877).
+    study-registration: ~
+    # Acknowledge and cite data/materials to be shared.
+    data-sharing: ~
+    # Example: This article is based on data published in Pulaski (2017).
+    # Example: This article is based on the dissertation completed by Graham (2018).    
+    # Example: Sally Jones earns royalties from the sale of Test X.
+    conflict-of-interest: ~
+    # Example: This study was supported by Grant A123 from the National Science Foundation.
+    financial-support: ~
+    # Example: The authors are grateful for the technical assistance of Dr. X during the initial design and setup of our lab equipment.
+    gratitude: ~
+    # Example. Because the authors are equal contributors, order of authorship was determined by a fair coin toss.
+    authorship-agreements: ~
+abstract: "XXX"
+keywords: [infant, restraint, everyday experiences, inertial sensors, machine learning]
+bibliography: [references.bib]
+format:
+  apaquarto-docx: 
+    floatsintext: false
+  apaquarto-html: default
+  apaquarto-typst: default
+  apaquarto-pdf: 
+    # can be jou (journal), man (manuscript), stu (student), or doc (document)
+    # for now, tables and figures do not render properly in jou mode. 
+    documentmode: man
+    # can be 10pt, 11pt, or 12pt
+    fontsize: 12pt
+    # Integrate tables and figures in text
+    floatsintext: false
+    # a4 paper if true, letter size if false
+    a4paper: false
+    # suppresses loading of the lmodern font package
+    nolmodern: false
+    # Suppresses loading of the fontenc package
+    nofontenc: false
+    # Suppress the title above the introduction
+    donotrepeattitle: false
+    # In jou mode, use times or pslatex instead of txfonts
+    notxfonts: false
+    # In jou mode, use Computer Modern font instead of times
+    notimes: false
+    # In jou mode, cancels automatic stretching of tables to column width 
+    notab: false
+    # Uses Helvetica font in stu and man mode
+    helv: false
+    # In man and stu mode, neutralizes the \helvetica command
+    nosf: false
+    # In man and stu mode, uses typewriter font
+    tt: false
+    # Puts draft watermark on first page
+    draftfirst: false
+    # Puts draft watermark on all pages
+    draftall: false
+    # Masks references that are marked as the author's own
+    mask: false
+    journal: ~
+    volume: ~
+    course: ~
+    professor: ~
+    duedate: ~
+    # Hides correspondence text
+    nocorrespondence: false
+---
+
+```{r}
+#| include: false
+
+library(papaja)
+library(knitr)
+library(patchwork)
+library(scales)
+library(ggforce)
+library(hms)
+library(tidyverse)
+library(lubridate)
+library(rstatix)
+```
+
+```{r}
+#| include: false
+
+set.seed(2025)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+
+theme_update(text = element_text(size = 14),
+             axis.text.x = element_text(size = 14, color = "black"),
+             axis.title.x = element_text(size = 16),
+             axis.text.y = element_text(size = 14,  color = "black"),
+             axis.title.y = element_text(size = 16),
+             panel.background = element_blank(),panel.border = element_blank(),
+             panel.grid.major = element_blank(),
+             panel.grid.minor = element_blank(), axis.line = element_blank(),
+             legend.key = element_rect(fill = "white"))
+```
+
+Infants learn and develop through everyday experiences. One common yet underexplored aspect of infant everyday experiences is physical restraint. Restrained period is when infants are unable to change their body positions at will, such as when they are held by caregivers (e.g., in arms or in carriers) or placed in containment devices (e.g., strollers, highchairs, car seats, ExerSaucers). When unrestrained, infants have greater autonomy to explore, deciding where to go, and what to see, hear and touch. In contrast, restraint limits infants' ability to initiate movement and reduces their control over their exploration and thus learning input. However, at the same time, restraint can occasionally afford novel experiences that infants cannot otherwise access by themselves (e.g., going outdoors in a stroller). Because restraint helps shape the broader contexts in which infant learning takes place, it is critical to study infant restraint experiences in order to better understand when and how infant learning occurs and then inform practical caregiving guidance.
+
+Restraint affects infant learning by altering infant daily experiences in many ways. First, restraint deprives infants of opportunities to move body parts (e.g., spine, legs, hip) [@Siddicky2020m], which is detrimental for their motor development. Indeed, prolonged restraint has been proven to cause temporary delay in motor development, even for ExerSaucers which are marketed as tools to promote motor development [@Abbott2001z; @Bartlett2003d; @Carson2022q; @Pin2007z; @Karasik2023l]. On the contrary, being unrestrained allows infants to produce XX steps per hour and fall XX times per day, which are both valuable practice for motor development (XXX). Second, restraint alters infant object interaction experience. Research found that infants hold objects less frequently when they are restrained compared to unrestrained, with restrained by caregivers providing the least opportunities [@Franchak2024v]. Third, restraint also alters infant language learning experiences. For example, seated in devices is correlated with less consistent and less amount of adult language infants can hear [@Malachowski2023z], potentially influencing language input and development.
+
+However, restraint does not always reduce infant learning opportunities. Sometimes caregiver carrying infants or putting infants in devices can rescue infants from their body disadvantages, particularly during earlier stages of development. For example, young infants who cannot sit independently struggle to interactive with objects because they cannot visually examine and manually manipulate the object at the same time [@Soska2010q]. However, being seated in supportive devices helps stablize infant posture, free infant hands and allow for multimodal object interaction (XXX). Similarly, infant body height limits what they can see on their own. The situation is even worse for infants who cannot stand up because they see much fewer faces when they are in prone position [@Franchak2018i]. However, being held in a forward-facing carrier or seated in highchairs can elevate infants' viewpoint and increase opportunities for face-to-face interaction [@Yu2013h; @Kretch2015p; @Franchak2024d]. These examples demonstrate that restraint may provide infants with uncommon learning materials that they would not otherwise obtained due to their developmental constraint. These examples further imply that the effects of restraint may vary depending on infants’ age and motor abilities, reinforcing the need to precisely quantify restraint across developmental stages and examine how it changes with development.
+
+Early research have made several attempts to quantify infant daily restrained time, but the estimates vary depending on the methods. Retrospective parental reports suggest relatively longer time of restraint. @Callahan1997s found infants younger than 5 months spent 5.7 hours per day (23.75%) on average in seating devices; @Bartlett2003d found that preterm infants at 8 months of age spent averaged 4.1 hours per day (17.08%) in containment equipment; @Siddicky2020m found that 2- to 6-month-olds spent 44% of daily *awake* time being held or carried. When recalculate based on infant average awake time (https://huckleberrycare.com/blog/baby-sleep-schedule-by-age-nap-and-sleep-chart; I will find the reference later), these findings suggest that infants from 2 to 8 months old may spend around 50% of their awake time restrained in devices, and nearly 50% of their awake time restrained by caregivers (i.e., carrying and holding). However, studies using ecological momentary assessment (EMA) found a smaller time amount of restraint. For example, @Malachowski2023z reported that 4- to 6-month-olds spent 41.13% of *total observation time* being held, and 45.43% in placement with physical support. The time proportion will presumably be less (and thus less than the above retrospective survey studies) when excluding infant sleep time. A more direct estimate comes from @Franchak2024v. They found that 10- to 13-month-olds spent 26.90% of *awake* time restrained in furniture or devices, and 18.79% restrained by caregivers, which is also lower than previous survey studies. In short, it appears that EMA gives lower estimates of infant daily restrained time compared to parental retrospective reports.
+
+Does infant restrained time change with age? Only a handful of studeis have answered this question, but their findings are mixed as well. @Airaksinen2024z, using inertial measurement sensors (IMU) and machine learning algorithms, found that infants from Finland experienced *increased* holding and carrying time from 4 to 18 months of age. On the contrary, @Carson2022q, using parental retrospective report and longitudinal design, found that infants from Canada experienced *decreased* overall restrained time from 2 to 6 months of age. @Franchak2024v, using EMA and longitudinal design, found that infants from the US experienced *decreased* time held by caregivers from 10 to 13 months, yet the time restrained by furniture or devices did not change with age. The discrepancies in findings may be attributed to differences in the targeted behaviors (i.e., whether to include device restraint or not, and which devices to include), study design (i.e., cross-sectional vs. longitudinal), cultural contexts, as well as research methods. To address the current discrepancies in findings, the first step is to develop an accurate and reliable system that examines infant general restraint experiences, which can be further applied to different age ranges and culture contexts. Among the available methods, we propose IMU is the most objective, unobtrusive, and efficient way to caputure whole-day experiences in natural settings. But previous studies that have used IMU on infants only looked at holding behavior, excluding other extensive restrained practices such as device use [@Airaksinen2024z; @Franchak2024i]. Thus, a new customized machine learning algorithm is needed to identify a broader range of restraint experiences.
+
+## Limitations of previous research methods
+
+As illustrated above, survey is the most commonly used method for quantifying infants daily restrained experiences, either in the form of retrospective report or ecological momentary phone survey across days. In most of the retrospective parental report studies, parents were asked to estimate their infant's average daily restrained time over the past few weeks or month [@Abbott2001z; @Bartlett2003d; @Callahan1997s; @Carson2022q; @Hesketh2015q; @Karasik2018o; @Siddicky2020m]. Despite its widespread use, this method may not be precise because it highly demands parents’ memory—It is difficult to recall and sum every bout of restraint practice and then report an overall time estimation [@Bradburn1987g]. There are exceptions where researchers asked caregivers to complete structured daily diaries reflecting on the past day’s restraint practices in short intervals (e.g., every five minutes) [@Karasik2018o; @Majnemer2005g]. However, this method is still sensitive to memory loss and thus not reliable in providing objective data.
+
+The recently developed method EMA lessens caregivers’ memory burden by making momentary phone-survey prompts to caregivers multiple times (e.g., 5, 10, or 12 times) randomly throughout a day [@Franchak2019v; @Franchak2024v; @Malachowski2023z]. Researchers then estimate the proportion of time infants spend restrained by calculating the frequency of restraint across all prompts. Presumably, EMA can improve accuracy compared to retrospective report. The estimate discrepancy between retrospective report and EMA that illustrated above indeed supports the potential difference between the two methods. However, the two methods still share crucial limitations. First, both retrospective reports and EMA rely on parental input, which assumes that caregivers are consistently or equally present to observe the infant throughout the day. If the infant’s certain activities are systematically unaware of by the caregiver (e.g., the caregiver is not at home in the afternoons), the report might not be fully representative of infant daily experiences. Thus, a method not relied on parental report is needed. Second, neither method provides time-sequence information with high granularity. They cannot answer finer-grained questions such as: When during the day is restraint most common? Are restraint bouts prolonged or brief and frequent? These questions call for a method with higher time-resolution.
+
+Video recording and human annotation, as another method, offers more accurate and temporally detailed data than survey-based methods. However, this approach is labor-intensive and time-consuming, which limits its use in large-scale or long-duration studies. As a result, most studies using video rely on short samples, normally around one hour (e.g., @Wang2025x). Accordingly, this method is sensitive to sampling bias because it is questionable for one-hour data to represent infant whole-day activities. Moreover, video recording can be obtrusive and may affect caregivers’ and infants’ behaviors, potentially introducing reactivity effects (XXX).
+
+## Promises of IMU system
+
+Measuring with IMU system has the potential to overcome the limitations listed above. IMU, light-weight sensors that can be tucked in specially designed garments (in our study, infant leggings), can record participants’ real-time movement of different body parts (e.g., hips and ankles). Easy synchronization between different sensors and local data storage eliminates the need for experimenters to collect data in person, making the method unobtrusive. A typical sample rate of 62.5 Hz allows for millisecond-level recording of motion data. A battery life of XX hours allows for whole-day-long observation, overcoming sampling bias to the greatest extent.
+
+Each sensor collects raw data as accelerometer signals (in x, y, and z orientations) and gyroscope signals (in roll, pitch, and yaw orientations). By aggregating signals from a given time window, we can calculate customized motion features (statistical summaries like mean, skew, etc.) at every moment. These features can then be used as input for machine learning algorithms to automatically classify infant behaviors (e.g., restrained and unrestrained). Human annotation from video recordings serves as ground truth labels for model training. This pipeline has been validated in categorizing adults’ activities (XXX; I need to do more research on this and word it differently), children’s activities (XXX), and infants’ activities (Franchak et al., 2024 for infant body position). IMU have also been used to detect caregiver holding \[\@Airaksinen2024z\], but no prior studies have applied IMU to classify broader forms of restraint, including both holding and device restraining. Thus, we propose a new IMU system which collects objective, reliable, unobtrusive, continuous, and long-form infant movement data as well as automatically identifies infant restrained status.
+
+## Current Study
+
+Given the limitations in current methods and the potential of IMU technology, the overall goal of this study is to evaluate the validity of using IMUs to precisely quantify infant full-day restrained experiences at home. Despite previous validation of IMU system on identifying infant position and caregiver holding, identifying all restraint practices on infants is still challenging. Consider an infant sitting on a couch independently versus an infant sitting on a highchair restrained, or an infant lying supine unrestrained versus an infant being tucked in cradle restrained. The infants are in same body position and are very likely to show similar movement patterns, but the context is different, differentiating the restrained status. Furthermore, device restraint might be more difficult to detect than caregiver restraint because carrying and holding tend to generate dramatic movement (e.g., the infant moving in an adult speed). Thus, in the current study, we develop and validate the use of new machine-learning models that identify both caregiver restraint and device restraint, classifying infant moment-to-moment status as being restrained or unrestrained.
+
+The models are tested by a total of 143 sessions from 66 infants who were aged from 7 to 14 months, covering a wide range from pre-sitting infants to walking infants. We sent caregivers special leggings with four IMUs embedded and a camera to record synchronized infant activities. Across the sessions, IMUs recorded an average of XX hours (*SE* = XX) of movement data, and the camera recorded the first 1.5 hours into the session. From the videos, human coders identify infant restrained status as ground truth for model training and testing. The **first aim** of the current study is to train the supervised machine-learning models of infant restrained status and evaluate the models’ accuracy using leave-one-out cross validation method (XXX) for the first 1.5 hours.
+
+If the models perform well, we will use the same rationale to train a new group model by feeding in all sessions’ human annotation. This model will then be applied to the remaining, unannotated portions of the IMU recordings to estimate infants’ full-day restraint time. Unfortunately, neither did previous studies establish a clear convergent estimate of infant overall restrained time proportion, nor did they find consistent age-related change, probably due to method differences. Considering EMA is likely to be more accurate than parental retrospective reports, we will compare our current estimate with @Franchak2024v, who found that 10- to 13-month-old infants spent 45.69% awake time being restrained. We do not compare our estimate data with @Malachowski2023z, another EMA study, because their reported estimates are among total observation time rather than awake time. We will also compare our estimated age-related change with @Franchak2024v who found that infant experienced increased unrestrained time from 10 to 13 months. We do not compare our age-related change with @Airaksinen2024z, an IMU-based study, because they only looked at caregiver restraint and excluded device restraint. In short, our **second aim** is to validate our new system by comparing empirical results with a previous study. However, due to methodological differences again (IMU versus EMA), it remains an open question whether these estimates will converge. \[note, when I was writing here, I feel we should probably at least distinguish caregiver restraint and device restraint\]
+
+# Method
