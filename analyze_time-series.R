@@ -33,9 +33,10 @@ unrestrained_pal <-  c("purple","white") %>%
 ds <- read_csv("!import/lena-imu-compiled.csv")
 
 # data wrangling
-ds$id_uni <- factor(ds$id*100+ds$session)
-ds <- ds %>% select(-(roll.key:Bin.Mins))
-ds <- ds %>% rename_with(janitor::make_clean_names)
+ds <- ds %>% 
+  mutate(id_uni = factor(ds$id*100+ds$session)) %>% 
+  select(-c(roll.key:Bin.Mins)) %>% 
+  rename_with(janitor::make_clean_names)
 
 ds$age_centered <- scale(ds$age, scale = F)
 ds$age_group <- factor(as.numeric(ds$age > 9), levels = 0:1, labels = c("Younger","Older"))
@@ -44,6 +45,13 @@ ds <- ds %>% mutate(across(sit_time:restrained_time, ~ ifelse(nap_time > 0 | exc
   mutate(nap_time = ifelse(nap_time > 0 & exclude_time == 0, 1, NA),
          exclude_time = ifelse(exclude_time > 0, 1, NA)) # why?
 
+# restrained_time - held_time = device_time
+ds <- ds %>% 
+  mutate(held = held_time) %>% 
+  mutate(device = restrained_time - held_time) %>% 
+  mutate(device = ifelse(device<0, 0, device))
+
+# pivot long
 ds_long <- ds %>% pivot_longer(cols = nap_time:upright_time, names_to = "position", values_to = "prop") %>% 
   mutate(Position = factor(position,
                            levels = c("exclude_time","nap_time","upright_time", "sit_time", "prone_time", "supine_time", "held_time"),
@@ -51,30 +59,32 @@ ds_long <- ds %>% pivot_longer(cols = nap_time:upright_time, names_to = "positio
   arrange(Position, age)
 ds_long <- ds_long %>% mutate(prop = na_if(prop, 0))
 
-# plot timeline function -- need to modify
+# plot timeline function
 timeline_rest_pos <- function(graph_id) {
   ds_exemplar <- ds_long %>% filter(id_uni == graph_id) %>% 
     mutate(clock_time_start = as_hms(with_tz(clock_time_start, "America/Los_Angeles"))) %>% 
     mutate(sil = rescale(sil, to = c(0,1)), adult_words = rescale(adult_word_cnt, to = c(0,1)),
-           walk = ifelse(walk_time > .05, .25, NA), crawl = ifelse(crawl_time > .05, .25, NA))
+           walk = ifelse(walk_time > .05, .25, NA), crawl = ifelse(crawl_time > .05, .25, NA)) #why?
   
   p1 <- ggplot(ds_exemplar) + 
     geom_bar(aes(x = clock_time_start, y = prop, fill = Position), stat = "identity") + 
     scale_fill_manual(values = c("Nap" = "gray","Exclude" = "white",pal), name = "") + ylab("") + 
-    geom_line(aes(x = clock_time_start, y = unrestrained_time - 1.1), color = "turquoise") +
-    geom_tile(aes(x = clock_time_start, y = crawl - 2), fill = "#56B4E9") +
-    geom_tile(aes(x = clock_time_start, y = walk - 2.5),fill ="#F0E442") + 
+    geom_line(aes(x = clock_time_start, y = restrained_time - 1.1), color = "turquoise") +
+    geom_line(aes(x = clock_time_start, y = held - 1.1), color = "#0072B2") +
+    #geom_tile(aes(x = clock_time_start, y = crawl - 2), fill = "#56B4E9") +
+    #geom_tile(aes(x = clock_time_start, y = walk - 2.5),fill ="#F0E442") + 
     scale_x_time(breaks = hour_breaks, labels = label_breaks, name = "", limits = lims) + 
-    geom_line(aes(x = clock_time_start, y = sil + 1.2), color = "lightblue") +
-    geom_line(aes(x = clock_time_start, y = adult_words + 1.2), color = "darkred") + 
+    #geom_line(aes(x = clock_time_start, y = sil + 1.2), color = "lightblue") +
+    #geom_line(aes(x = clock_time_start, y = adult_words + 1.2), color = "darkred") + 
     ggtitle(str_glue("{ds_exemplar$id[1]}-{ds_exemplar$session[1]} ({round(ds_exemplar$age[1],1)} months) {ds_exemplar$sitter[1]}/{ds_exemplar$crawler[1]}/{ds_exemplar$walker[1]}")) + 
-    scale_y_continuous(breaks = c(-1.5, -.5, .5, 1.5), labels = c("Crawl (Blue)\nWalk (Yellow)", "Unrestrained Time", "Position", "Speech (Red)\nSilence (Blue)"), limits = c(-3, 2.25)) +
+    #scale_y_continuous(breaks = c(-1.5, -.5, .5, 1.5), labels = c("Crawl (Blue)\nWalk (Yellow)", "Restrained Time", "Position", "Speech (Red)\nSilence (Blue)"), limits = c(-3, 2.25)) +
+    scale_y_continuous(breaks = c(-.5, .5), labels = c("Restrained Time", "Position"), limits = c(-1.1, 1.1)) +
     theme(legend.position = "bottom") 
-  print(p1)
+  ggsave(paste0("figure_timeline/",graph_id,".png",sep=''),p1,width=8, height=5)
   return(p1)
 }
-p <- make_timeline(801)
-p
+timeline_rest_pos(801)
+
 #legend.margin=margin(c(5,5,5,5)),legend.box.margin=margin(c(-10,-10,-10,-10))
 
-walk(sort(unique(ds_long$id_uni)), make_timeline)
+walk(sort(unique(ds_long$id_uni)), timeline_rest_pos)
