@@ -244,11 +244,11 @@ prop_un_excl <- ds_sum_excl %>%
 
 ```{r}
 # across 4~14
-ggplot(ds_sum) +
-  geom_point(aes(x = agemo, y = unrestrained_prop)) + 
-  geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
-  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+# ggplot(ds_sum) +
+#   geom_point(aes(x = agemo, y = unrestrained_prop)) + 
+#   geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
+#   scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
+#   scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
 summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum))
 
 ggplot(ds_sum_excl) +
@@ -259,6 +259,14 @@ ggplot(ds_sum_excl) +
 ggsave("figure/age_related_change.png",width=6, height=4)
 ggsave("figure/age_related_change.eps",width=6, height=4)
 summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum_excl))
+
+ggplot(ds_sum_excl) +
+  geom_point(aes(x = agemo, y = unrestrained_prop)) + 
+  geom_smooth(aes(x = agemo, y = unrestrained_prop, group=age_group), method = "lm", se = T) + 
+  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+ggsave("figure/age_related_change_ingroup.png",width=6, height=4)
+ggsave("figure/age_related_change_ingroup.eps",width=6, height=4)
 
 ```
 
@@ -385,7 +393,10 @@ summary(lm(unrestrained_prop ~ crawler + scale(agemo), data = ds_sum_excl))
 ## Q3-3: crawling + sitting
 ```{r}
 ds_sum %>% 
-  mutate(loc = ifelse(loc=="Walker","Crawler",loc)) %>% 
+  mutate(loc = ifelse(loc=="Walker","Crawler",loc))%>%
+  mutate(loc = factor(loc, 
+                      levels = c("Non-Sitter","Sitter","Crawler"), 
+                      labels=c("Non-Sitter","Sitter","Crawler")))%>% 
   ggplot() +
     geom_point(aes(x = agemo, y = unrestrained_prop, color = loc)) + 
     geom_smooth(aes(x = agemo, y = unrestrained_prop, color = loc), method = "lm", se = FALSE) + 
