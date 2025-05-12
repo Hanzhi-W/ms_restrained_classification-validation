@@ -26,14 +26,14 @@ library(interactions)
 #| include: false
 # preset
 theme_update(text = element_text(size = 20),
-             axis.text.x = element_text(size = 20, color = "black"), axis.title.x = element_text(size = 24),
-             axis.text.y = element_text(size = 20,  color = "black"), axis.title.y = element_text(size = 24), 
+             axis.text.x = element_text(size = 20, color = "black"), axis.title.x = element_text(size = 24), 
+             axis.text.y = element_text(size = 20,  color = "black"), axis.title.y = element_text(size = 24),
              panel.background = element_blank(),panel.border = element_blank(), panel.grid.major = element_blank(),
              panel.grid.minor = element_blank(), axis.line = element_blank(), 
              legend.key = element_rect(fill = "white")) 
 
 loc_labels <- c("Non-Sitter", "Sitter", "Crawler", "Walker","Non-Crawler")
-loc_colors <- c("tomato","chartreuse4","cyan3","mediumpurple1","orange") %>% set_names(loc_labels)
+loc_colors <- c("#D81B60","#004D40","#1E88E5","purple4","orange") %>% set_names(loc_labels)
 age_labels <- c("Younger","Older")
 age_colors <- c("red","navy") %>% set_names(age_labels)
 
@@ -105,12 +105,16 @@ ds_sum <- ds %>% group_by(unique_id, agemo, walker, crawler,sitter, age_group,lo
 # 148/2, younger max, 0.96
 # 181/3, older min, 0.75
 outliers_list_older <- 
-  DescTools::Outlier(ds_sum$restrained_prop[ds_sum$age_group=="Older"], method = "boxplot")
+  DescTools::Outlier(ds_sum$unrestrained_prop[ds_sum$age_group=="Older"], method = "boxplot")
 outliers_list_younger <- 
-  DescTools::Outlier(ds_sum$restrained_prop[ds_sum$age_group=="Younger"], method = "boxplot")
+  DescTools::Outlier(ds_sum$unrestrained_prop[ds_sum$age_group=="Younger"], method = "boxplot")
 ds_sum_excl <- 
-  ds_sum[!(ds_sum$restrained_prop %in% outliers_list_older | ds_sum$restrained_prop %in% outliers_list_younger),]
+  ds_sum[!(ds_sum$unrestrained_prop %in% outliers_list_older | ds_sum$unrestrained_prop %in% outliers_list_younger),]
 
+outliers_list <- 
+  DescTools::Outlier(ds_sum$unrestrained_prop, method = "boxplot")
+ds_sum_excl2 <- 
+  ds_sum[!(ds_sum$unrestrained_prop %in% outliers_list),]
 
 # load human coding results
 ds_human <- read_csv("Restrained human coding results.csv",
@@ -124,7 +128,7 @@ ds_human <- left_join(ds_sum %>% select(unique_id),
 colnames(ds_human) <- c("unique_id","agree","kappa")
 
 # save the data frames so that don't have to download data from server again
-# save(ds, ds_sum, synced_ppts, id_info, id_demo, ds_human, ds_sum_excl, file = "whole-model-prediction.RData")
+# save(ds, ds_sum, synced_ppts, id_info, id_demo, ds_human, ds_sum_excl, ds_sum_excl2, file = "whole-model-prediction.RData")
 ```
 
 ```{r}
@@ -221,7 +225,7 @@ ggsave("figure/total recording time dist.png",p_ttltime, width=10, height=10)
 ggplot(ds_sum, aes(x = age_group, y = unrestrained_prop)) +
   geom_boxplot() + 
   geom_point(position = position_jitter(width = .1), size = 4, color = "red", shape = 1) + 
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))+
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))+
   labs(x="Age group",
        y="Unrestrained time %")
 ggsave("figure/unrestrained time prop.png", width=6, height=5)
@@ -241,30 +245,46 @@ prop_un_excl <- ds_sum_excl %>%
 ```
 
 ## Q2: Age-related change
+```{r}
+# descriptive results
+ds_sum %>% 
+  group_by(age_mo) %>% 
+  summarize(mean = mean(unrestrained_prop),
+            sd = sd(unrestrained_prop),
+            .groups="drop")
+```
 
 ```{r}
 # across 4~14
 # ggplot(ds_sum) +
 #   geom_point(aes(x = agemo, y = unrestrained_prop)) + 
 #   geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
-#   scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-#   scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+#   scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+#   scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
 summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum))
 
-ggplot(ds_sum_excl) +
+ggplot(ds_sum) +
   geom_point(aes(x = agemo, y = unrestrained_prop)) + 
   geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
-  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+  scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
 ggsave("figure/age_related_change.png",width=6, height=4)
 ggsave("figure/age_related_change.eps",width=6, height=4)
-summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum_excl))
 
-ggplot(ds_sum_excl) +
+ggplot(ds_sum_excl2) +
   geom_point(aes(x = agemo, y = unrestrained_prop)) + 
-  geom_smooth(aes(x = agemo, y = unrestrained_prop, group=age_group), method = "lm", se = T) + 
-  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+  geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
+  scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
+ggsave("figure/age_related_change.png",width=6, height=4)
+ggsave("figure/age_related_change.eps",width=6, height=4)
+summary(lm(unrestrained_prop ~ agemo, data = ds_sum_excl2))
+
+ggplot(ds_sum_excl2) +
+  geom_point(aes(x = agemo, y = unrestrained_prop),size=4, shape=1, stroke=1.5) +
+  geom_smooth(aes(x = agemo, y = unrestrained_prop, group=age_group), method = "lm", se = T) +
+  scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
 ggsave("figure/age_related_change_ingroup.png",width=6, height=4)
 ggsave("figure/age_related_change_ingroup.eps",width=6, height=4)
 
@@ -277,20 +297,21 @@ ds_sum %>%
   ggplot() +
   geom_point(aes(x = agemo, y = unrestrained_prop)) + 
   geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
-  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+  scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
 summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum %>% filter(age_group=="Younger")))
 
-ds_sum_excl %>% 
-  filter(age_group=="Younger") %>% 
+ds_sum_excl2 %>%
+  filter(age_group=="Younger") %>%
   ggplot() +
-  geom_point(aes(x = agemo, y = unrestrained_prop)) + 
-  geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
-  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+  geom_point(aes(x = agemo, y = unrestrained_prop)) +
+  geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) +
+  scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
 ggsave("figure/age_related_change_young.png",width=6, height=4)
 ggsave("figure/age_related_change_young.eps",width=6, height=4)
-summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum_excl%>% filter(age_group=="Younger")))
+
+summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum_excl2%>% filter(age_group=="Younger")))
 ```
 
 ```{r}
@@ -300,20 +321,20 @@ ds_sum %>%
   ggplot() +
   geom_point(aes(x = agemo, y = unrestrained_prop)) + 
   geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
-  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+  scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
 summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum %>% filter(age_group=="Older")))
 
-ds_sum_excl %>% 
+ds_sum_excl2 %>% 
   filter(age_group=="Older") %>% 
   ggplot() +
   geom_point(aes(x = agemo, y = unrestrained_prop)) + 
   geom_smooth(aes(x = agemo, y = unrestrained_prop), method = "lm", se = T) + 
-  scale_x_continuous(name = "Age (mos)", breaks = c(4,7,11,14), limits = c(3,15)) +
-  scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))
+  scale_x_continuous(name = "Age (mo.)", breaks = c(4,7,11,14), limits = c(3,15)) +
+  scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))
 ggsave("figure/age_related_change_old.png",width=6, height=4)
 ggsave("figure/age_related_change_old.eps",width=6, height=4)
-summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum_excl%>% filter(age_group=="Older")))
+summary(lm(unrestrained_prop ~ scale(agemo), data = ds_sum_excl2%>% filter(age_group=="Older")))
 ```
 
 ```{r}
@@ -347,50 +368,7 @@ summary(lm(unrestrained_prop ~ scale(age_base)+scale(age_change), data = ds_sum_
 summary(lm(unrestrained_prop ~ scale(age_base)+scale(age_change), data = ds_sum_excl2 %>% filter(age_group=="Older")))
 ```
 
-## Q3-1: sitting related change
-```{r}
-ds_sum %>% 
-  ggplot() +
-    geom_point(aes(x = agemo, y = unrestrained_prop, color = sitter)) + 
-    geom_smooth(aes(x = agemo, y = unrestrained_prop, color = sitter), method = "lm", se = FALSE) + 
-    scale_x_continuous(name = "Age (mo)", breaks = c(4,7,11,14), limits = c(3,15)) +
-    scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))+
-    scale_color_manual(values=loc_colors)
-ggsave("figure/sit_related_change.png", width=6, height=4)
-ggsave("figure/sit_related_change.eps", width=6, height=4)
-summary(lm(unrestrained_prop ~ sitter + scale(agemo), data = ds_sum))
-summary(lm(unrestrained_prop ~ sitter + scale(agemo), data = ds_sum_excl))
-
-# ds_sum %>% 
-#   filter(age_group=="Younger") %>% 
-#   ggplot() +
-#     geom_point(aes(x = agemo, y = unrestrained_prop, color = sitter)) + 
-#     geom_smooth(aes(x = agemo, y = unrestrained_prop, color = sitter), method = "lm", se = FALSE) + 
-#     scale_x_continuous(name = "Age (mo)", breaks = c(4,7,11,14), limits = c(3,15)) +
-#     scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))+
-#     scale_color_manual(values=loc_colors)
-summary(lm(unrestrained_prop ~ sitter + scale(agemo), data = ds_sum %>% filter(age_group=="Younger")))
-# summary(lm(unrestrained_prop ~ sitter + scale(age_base)+scale(age_change), data = ds_sum2 %>% filter(age_group=="Younger")))
-
-```
-
-## Q3-2: crawling related change
-```{r}
-ds_sum %>% 
-  ggplot() +
-    geom_point(aes(x = agemo, y = unrestrained_prop, color = crawler)) + 
-    geom_smooth(aes(x = agemo, y = unrestrained_prop, color = crawler), method = "lm", se = FALSE) + 
-    scale_x_continuous(name = "Age (mo)", breaks = c(4,7,11,14), limits = c(3,15)) +
-    scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))+
-    scale_color_manual(values=loc_colors)
-ggsave("figure/crawl_related_change.png", width=6, height=4)
-ggsave("figure/crawl_related_change.eps", width=6, height=4)
-summary(lm(unrestrained_prop ~ crawler + scale(agemo), data = ds_sum))
-summary(lm(unrestrained_prop ~ crawler + scale(agemo), data = ds_sum_excl))
-
-```
-
-## Q3-3: crawling + sitting
+## Q3 locomotor-related change: crawling + sitting( + walking)
 ```{r}
 ds_sum %>% 
   mutate(loc = ifelse(loc=="Walker","Crawler",loc))%>%
@@ -399,15 +377,58 @@ ds_sum %>%
                       labels=c("Non-Sitter","Sitter","Crawler")))%>% 
   ggplot() +
     geom_point(aes(x = agemo, y = unrestrained_prop, color = loc)) + 
-    geom_smooth(aes(x = agemo, y = unrestrained_prop, color = loc), method = "lm", se = FALSE) + 
     scale_x_continuous(name = "Age (mo)", breaks = c(4,7,11,14), limits = c(3,15)) +
-    scale_y_continuous(name = "Prop(unrestrained)", breaks = seq(0, 1, .25), limits = c(0,1))+
+    scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))+
     scale_color_manual(values=loc_colors)
-ggsave("figure/crawl_sit_change.png", width=6, height=4)
-ggsave("figure/crawl_sit_change.eps", width=6, height=4)
-summary(lm(unrestrained_prop ~ crawler + sitter + agemo, data = ds_sum))
-summary(lm(unrestrained_prop ~ crawler + sitter + agemo, data = ds_sum_excl))
-# here, excluding outliers or not influences a lot
+
+# sitting + crawling
+ds_sum_excl2 %>% 
+  mutate(loc = ifelse(loc=="Walker","Crawler",loc))%>%
+  mutate(loc = factor(loc, 
+                      levels = c("Non-Sitter","Sitter","Crawler"), 
+                      labels=c("Non-Sitter","Sitter","Crawler")))%>% 
+  ggplot() +
+    geom_point(aes(x = agemo, y = unrestrained_prop, color = loc)) + 
+    scale_x_continuous(name = "Age (mo)", breaks = c(4,7,11,14), limits = c(3,15)) +
+    scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))+
+    scale_color_manual(values=loc_colors)
+
+# sitting + crawling + walking
+mean_unr_loc <- ds_sum_excl2 %>% 
+  group_by(loc) %>% 
+  summarize(age = mean(agemo),
+            prop = mean(unrestrained_prop),
+            .groups="drop") %>% 
+  mutate(x=age-0.8,
+         xend=age+0.8,
+         y=prop,
+         yend=prop,)
+
+ds_sum_excl2 %>% 
+  ggplot() +
+    geom_point(aes(x = agemo, y = unrestrained_prop, color = loc),size=4,shape=1, stroke=1.5) + 
+    scale_x_continuous(name = "Age (mon)", breaks = c(4,7,11,14), limits = c(3,15)) +
+    scale_y_continuous(name = "Unrestrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))+
+    scale_color_manual(values=loc_colors)
+ggsave("figure/sit_crawl_walk_change.png", width=8, height=4)
+ggsave("figure/sit_crawl_walk_change.eps", width=8, height=4)
+# summary(lm(unrestrained_prop ~ crawler + sitter + agemo, data = ds_sum))
+# summary(lm(unrestrained_prop ~ crawler + sitter + agemo, data = ds_sum_excl))
+
+summary(lm(unrestrained_prop ~ agemo, data = ds_sum_excl2))
+summary(lm(unrestrained_prop ~ sitter + agemo, data = ds_sum_excl2))
+summary(lm(unrestrained_prop ~ sitter + crawler + agemo, data = ds_sum_excl2))
+summary(lm(unrestrained_prop ~ sitter + crawler + walker + agemo, data = ds_sum_excl2))
+```
+
+
+```{r}
+# description
+t <- ds_sum_excl2 %>% 
+  group_by(loc) %>% 
+  summarize(mean=mean(unrestrained_prop),
+            sd=sd(unrestrained_prop))
+  
 ```
 
 ## Q4: unrestrained bouts--many short bouts or few long bouts?
