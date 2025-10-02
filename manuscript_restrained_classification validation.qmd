@@ -118,6 +118,7 @@ library(rstatix)
 library(janitor)
 library(flextable)
 library(effectsize)
+library(ggbeeswarm)
 ```
 
 ```{r}
@@ -138,12 +139,13 @@ theme_update(text = element_text(size = 11),
 
 model_labels <- c("4_no_pos", "16_no_pos", "30_no_pos")
 model_shapes <- c(5,1,2) %>% set_names(model_labels)
+model_colors <- c("#0072B2","#E69F00", "#009E73") %>% set_names(c("4 s", "16 s", "30 s"))
 class_labels <- c("r", "u")
 class_shapes <- c(5,1) %>% set_names(class_labels)
-class_colors <- c("#0072B2","#E69F00") %>% set_names(class_labels)
+# class_colors <- c("#0072B2","#E69F00") %>% set_names(class_labels)
 
 indx <- c("balanced_accuracy","kappa", "sensitivity","pos_pred_value","f1")
-indices <- c("Sensitivity", "Positive Predictive Value", "F1", "Prevalence Difference")
+per_class_indx <- c("sensitivity","pos_pred_value","f1")
 
 ```
 
@@ -379,75 +381,195 @@ table_flex_btw_mdl <- table_btw_mdl %>%
 table_flex_btw_mdl
 ```
 
-```{r tbl-indexbetweenctgr}
-#| apa-note: Age in months served as a continuous predictor and was centered within each age group; skill was a categorical predictor with non-sitters/non-walkers serving as the reference categories
-#| tbl-cap: POSTPONE-Models' prediction performance for unrestrained periods compared to restrained periods
+```{r tbl-cibtwctg}
+#| apa-note: Compare Between Categories
+#| tbl-cap: XX
 #| ft.align: left
+# For per-class metrics (i.e., sens, ppv, f1), calculate the CI of the metric difference btw classes (i.e., r and u)
 
-# Compare between categories while controlling for models
-lm_ctgr <- function(model_select){
-  temp_ds <- matrix_comb %>% filter(model==model_select)
+# Function to bootstrap CI of gap for each model and each metric
+bootstrap_gap <- function(df, metric, B = 2000) {
+  df_wide <- df %>%
+    select(session, id, positive_class, !!sym(metric)) %>%
+    pivot_wider(names_from = positive_class, values_from = !!sym(metric)) %>%
+    mutate(gap = r - u,
+           id_session = paste(id, session, sep = "_"))
+  
+  sessions <- unique(df_wide$id_session)
+  n <- length(sessions)
+  res <- numeric(B)
+  
+  for (b in seq_len(B)) {
+    sampled <- sample(sessions, size = n, replace = TRUE)
+    df_b <- df_wide %>% filter(id_session %in% sampled)
+    res[b] <- mean(df_b$gap, na.rm = TRUE)
+  }
+  
+  ci <- quantile(res, c(0.025, 0.975), na.rm = TRUE)
+  
   list(
-    sen = summary(lm(sensitivity ~ positive_class, data=temp_ds))$coefficients,
-    ppv = summary(lm(pos_pred_value ~ positive_class, data=temp_ds))$coefficients,
-    f1  = summary(lm(f1 ~ positive_class, data=temp_ds))$coefficients,
-    prev_df = summary(lm(prevalence_df ~ positive_class, data=temp_ds))$coefficients
+    metric = metric,
+    mean_gap = mean(df_wide$gap, na.rm = TRUE),
+    ci = ci
   )
 }
 
-#
-t <- matrix_comb %>% 
-  filter (model=="30_no_pos") %>% 
-  select(id, session, positive_class, sensitivity) %>% 
-  pivot_wider(names_from = positive_class, values_from = sensitivity) %>% 
-  mutate(df = u-r)
-summary(lm(df ~ 1, data = t))
+table_btw_ctg <- crossing(model = model_labels, metric = per_class_indx) %>%   # all combinations
+  mutate(result = map2(model, metric, 
+                       ~ bootstrap_gap(df = matrix_comb %>% filter(model == .x), 
+                                       metric = .y))) %>%
+  mutate(result = map(result, ~ tibble(
+    mean_gap = .x$mean_gap,
+    ci_low   = .x$ci[1],
+    ci_high  = .x$ci[2]
+  ))) %>% 
+  unnest(result) %>% 
+  mutate(model = factor(model, levels = c("4_no_pos","16_no_pos","30_no_pos")),
+         metric = factor(metric, levels = c("sensitivity","pos_pred_value","f1"))) %>% 
+  mutate(model = recode(model,
+                        "4_no_pos" = "4 s",
+                        "16_no_pos" = "16 s",
+                        "30_no_pos" = "30 s"),
+         metric = recode(metric,
+                         "sensitivity" = "Sensitivity",
+                         "pos_pred_value" = "Positive Predictive Value",
+                         "f1" = "F1")) %>% 
+  arrange(model, metric) %>% 
+  rename("Window Length" = "model",
+         "Metric" = "metric",
+         "M (Rest.- Unrest.)"="mean_gap",
+         "2.5% CI (Rest.- Unrest.)"="ci_low",
+         "97.5% CI (Rest.- Unrest.)"="ci_high")
 
-#
-tbl_ctgr_30 <- lm_ctgr("30_no_pos")%>% 
-  map2_dfr(indices, ~ mutate(as.data.frame(.x), Indices = .y)) %>% 
-  relocate("Indices", .before = "Estimate")%>% 
-  rename(p = `Pr(>|t|)`, SE = `Std. Error`, t = `t value`) %>% 
-  mutate(p = ifelse(p < .001,"<.001",round(p,3)),
-         p = str_remove(p, "^0")) %>% 
-  mutate(across(where(is.numeric), ~ round(.x, 3))) %>% 
-  add_column(Term = rep(c("Intercept","Prediction of Unrestrained"), 4), .before = "Estimate") %>% 
-  select(-SE) 
-
-tbl_ctgr_16 <- lm_ctgr("16_no_pos") %>% 
-  map2_dfr(indices, ~ mutate(as.data.frame(.x), Indices = .y)) %>% 
-  relocate("Indices", .before = "Estimate")%>% 
-  rename(p = `Pr(>|t|)`, SE = `Std. Error`, t = `t value`) %>% 
-  mutate(p = ifelse(p < .001,"<.001",round(p,3)),
-         p = str_remove(p, "^0")) %>% 
-  mutate(across(where(is.numeric), ~ round(.x, 3))) %>% 
-  add_column(Term = rep(c("Int.","Unrest. vs Rest."), 4), .before = "Estimate") %>% 
-  select(-SE)
-
-tbl_ctgr_4 <- lm_ctgr("4_no_pos") %>% 
-  map2_dfr(indices, ~ mutate(as.data.frame(.x), Indices = .y)) %>% 
-  relocate("Indices", .before = "Estimate")%>% 
-  rename(p = `Pr(>|t|)`, SE = `Std. Error`, t = `t value`) %>% 
-  mutate(p = ifelse(p < .001,"<.001",round(p,3)),
-         p = str_remove(p, "^0")) %>% 
-  mutate(across(where(is.numeric), ~ round(.x, 3))) %>% 
-  add_column(Term = rep(c("Int.","Unrest. vs Rest."), 4), .before = "Estimate") %>% 
-  select(-SE) 
-
-tbl_ctgr <- cbind(tbl_ctgr_4, tbl_ctgr_16 %>% select(-Indices,-Term) %>% rename(Estimate_16=Estimate,t_16=t,p_16=p)) %>% 
-  cbind(tbl_ctgr_30 %>% select(-Indices, -Term) %>% rename(Estimate_30=Estimate,t_30=t,p_30=p))
-
-tbl_flex_ctgr <- tbl_ctgr %>% 
-  flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>%
-  set_header_labels(Estimate_16 = "Estimate", t_16 = "t", p_16 = "p",
-                    Estimate_30 = "Estimate", t_30 = "t", p_30 = "p") %>%
-  merge_v(j = "Indices") %>% fix_border_issues() %>% 
-  hline(i = c(2,4,6,8)) %>% 
+table_flex_btw_ctg <- table_btw_ctg %>% 
+  flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
+  merge_v(j = "Window Length") %>% fix_border_issues() %>% 
+  hline(i = c(3,6,9)) %>% 
   padding(padding.top = 2, padding.bottom = 2) %>% 
   set_table_properties(layout = "autofit", width = .99) %>% 
-  align(align = "center", part = "all") %>% 
-  add_header_row(values = c("", "4s Model", "16s Model", "30s Model"), colwidths = c(2,3,3,3))
-tbl_flex_ctgr
+  align(align = "center", part = "all")
+table_flex_btw_ctg
+```
+
+```{r fig-cibtwctg}
+#| fig-cap: Compare between categories
+#| fig-width: 7
+#| fig-height: 5
+#| apa-note: XX
+p_ci <- ggplot(table_btw_ctg, 
+       aes(x = Metric, 
+           y = `M (Rest.- Unrest.)`, 
+           ymin = `2.5% CI (Rest.- Unrest.)`, 
+           ymax = `97.5% CI (Rest.- Unrest.)`, 
+           color = `Window Length`)) +
+  geom_pointrange(position = position_dodge(width = 0.5), size = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
+  scale_y_continuous(
+    limits = c(-0.15, 0.1),  
+    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1) 
+  )+
+  theme_update() +
+  labs(x = NULL,y = "CI of metric difference between restrained and unrestrained",
+    color = "Window Length")
+
+p_ci
+# ggsave("figure/CI.png",width=7, height=5)
+# ggsave("figure/CI.eps",width=7, height=5)
+
+```
+
+```{r tbl-prevalencegap}
+#| apa-note: Diiference of Restraint Prevalence Between Model and Human
+#| tbl-cap: XX
+#| ft.align: left
+
+df_prev <- matrix_comb %>% 
+  filter(positive_class=="r") %>% 
+  select(model, id, session, detection_prevalence, prevalence)
+  
+paired_t <- function(df){
+  tt<-t.test(df$detection_prevalence, df$prevalence, paired=T)
+  list(
+    t = tt$statistic,
+    p = tt$p.value
+  )
+}
+
+table_prev <- df_prev %>% 
+  group_by(model) %>% 
+  summarise(actual_prev = mean(detection_prevalence),
+            prev = mean(prevalence),
+            .groups = "drop") %>% 
+  mutate(result=map(model_labels, ~paired_t(df_prev %>% filter(model==.x))))%>% 
+  mutate(result = map(result, ~tibble(
+    t = .x$t,
+    p = .x$p
+  ))) %>% 
+  unnest(result) %>% 
+  mutate(model=recode(model,
+                      "4_no_pos" = "4 s",
+                       "16_no_pos" = "16 s",
+                       "30_no_pos" = "30 s")) %>% 
+  rename("Window Length" = "model",
+         "Human Annotation Prevalence" = "actual_prev",
+         "Model Prediction Prevalence" = "prev")
+
+table_flex_prev <- table_prev %>% 
+  flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
+  fix_border_issues() %>% 
+  hline(i = c(1,2,3)) %>% 
+  padding(padding.top = 2, padding.bottom = 2) %>% 
+  set_table_properties(layout = "autofit", width = .99) %>% 
+  align(align = "center", part = "all")
+table_flex_prev
+
+```
+
+```{r fig-prevalence}
+#| fig-cap: Prevalence Correlation
+#| fig-width: 7
+#| fig-height: 5
+#| apa-note: XX
+p_prev <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
+                   mutate(model=recode(model,
+                                       "4_no_pos" = "4 s",
+                                       "16_no_pos" = "16 s",
+                                       "30_no_pos" = "30 s")),
+                 aes(x=prevalence, y=detection_prevalence, color=model))+
+  geom_point(shape = 16,size = 5,alpha=.3) + 
+  geom_abline(intercept = 0, slope = 1, linetype="dashed", color = "black") +
+  geom_smooth(method = "lm", se = FALSE, size = 1) +  
+  scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
+  scale_x_continuous(limits = c(0,1), breaks=c(0,.5,1)) +
+  scale_y_continuous(limits = c(0,1), breaks=c(0,.5,1))+
+  labs(x="Prevalence of restraint by human annotation", y="Prevalence of restraint by model prediction", color="Window Length")+
+  theme_update()
+p_prev
+
+```
+
+```{r fig-prevalencegap}
+#| fig-cap: Prevalence Gap 
+#| fig-width: 7
+#| fig-height: 5
+#| apa-note: XX
+p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
+                   mutate(model=recode(model,
+                                       "4_no_pos" = "4 s",
+                                       "16_no_pos" = "16 s",
+                                       "30_no_pos" = "30 s")),
+                 aes(x=model, y=detection_prevalence-prevalence, color=model))+
+  geom_violin(trim = FALSE, alpha = 0.4) +
+  geom_quasirandom(aes(color = model),
+                   dodge.width = 0.7, varwidth = TRUE, alpha = 0.6, size = 2) +
+  geom_boxplot(width = 0.1, outlier.shape = NA, fill = "white") + 
+  geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
+  scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
+  labs(x="", y="Detection prevalence - true prevalence of restraint")+
+  guides(color = "none")+
+  theme_update()
+p_prev_gap
 ```
 
 ```{r fig-indexcomparison}
