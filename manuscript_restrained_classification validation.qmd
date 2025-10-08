@@ -119,6 +119,7 @@ library(janitor)
 library(flextable)
 library(effectsize)
 library(ggbeeswarm)
+library(DescTools)
 ```
 
 ```{r}
@@ -569,6 +570,58 @@ p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
 p_prev_gap
 ```
 
+```{r}
+# check if the data set is imbalanced 
+matrix_comb %>% 
+  filter(positive_class=="r") %>% 
+  group_by(model) %>% 
+  summarize(mean_prev = mean(prevalence),
+            sd_prev = sd(prevalence),
+            .groups="drop")
+
+
+ggplot(matrix_comb %>% filter(positive_class=="r"), aes(x = prevalence, color=model)) +
+  geom_density(alpha = 0.4)
+
+#slightly imbalanced: less unrestrained periods, the ratio (~40%) is similar to the total estimated proportion
+```
+
+```{r}
+# check accuracy outliers 
+outlier_4 <- matrix_comb %>%
+  filter(model == "4_no_pos", positive_class=="r") %>%
+  mutate(
+    q1 = quantile(accuracy, 0.25),
+    q3 = quantile(accuracy, 0.75),
+    iqr = q3 - q1,
+    is_outlier = accuracy < (q1 - 1.5 * iqr) | accuracy > (q3 + 1.5 * iqr)
+  ) %>%  filter(is_outlier)
+outlier_16 <- matrix_comb %>%
+  filter(model == "16_no_pos", positive_class=="r") %>%
+  mutate(
+    q1 = quantile(accuracy, 0.25),
+    q3 = quantile(accuracy, 0.75),
+    iqr = q3 - q1,
+    is_outlier = accuracy < (q1 - 1.5 * iqr) | accuracy > (q3 + 1.5 * iqr)
+  ) %>%  filter(is_outlier)
+outlier_30 <- matrix_comb %>%
+  filter(model == "30_no_pos", positive_class=="r") %>%
+  mutate(
+    q1 = quantile(accuracy, 0.25),
+    q3 = quantile(accuracy, 0.75),
+    iqr = q3 - q1,
+    is_outlier = accuracy < (q1 - 1.5 * iqr) | accuracy > (q3 + 1.5 * iqr)
+  ) %>%  filter(is_outlier)
+
+outliers <- rbind(outlier_4,outlier_16, outlier_30)
+
+ggplot(data=outliers, aes(x=session, y=id, color=model))+
+  geom_jitter()+
+  geom_text(aes(label = paste0("(", id, ", ", session, ")")),
+            vjust = -0.5,   # move label a bit above point
+            size = 3) 
+```
+
 ### Overall Model Performance 
 
 @tbl-indexbetweenmodels shows that all window lengths reached high accuracy (`r apa_num(table_btw_mdl[1,3])` for 4 s, `r apa_num(table_btw_mdl[1,4])` for 16 s, and `r apa_num(table_btw_mdl[1,5])` for 30 s), and good kappa value (`r apa_num(table_btw_mdl[2,3])` for 4 s, `r apa_num(table_btw_mdl[2,4])` for 16 s, and `r apa_num(table_btw_mdl[2,5])` for 30 s). All the window lengths also presented high sensitivity (ranging from `r apa_num(min(table_btw_mdl[3,3:5]))` to `r apa_num(max(table_btw_mdl[3,3:5]))` for restrained prediction, and `r apa_num(min(table_btw_mdl[4,3:5]))` to `r apa_num(max(table_btw_mdl[4,3:5]))` for unrestrained prediction), high positive predictive value (ranging from `r apa_num(min(table_btw_mdl[5,3:5]))` to `r apa_num(max(table_btw_mdl[5,3:5]))` for restrained prediction, and `r apa_num(min(table_btw_mdl[6,3:5]))` to `r apa_num(max(table_btw_mdl[6,3:5]))` for unrestrained prediction), and high F1 score (ranging from `r apa_num(min(table_btw_mdl[7,3:5]))` to `r apa_num(max(table_btw_mdl[7,3:5]))` for restrained prediction, and `r apa_num(min(table_btw_mdl[8,3:5]))` to `r apa_num(max(table_btw_mdl[8,3:5]))` for unrestrained prediction). Moreover, the three window lengths did not present significant differences in any of the metrics (*p*s >= `r apa_num(min(table_btw_mdl[1:8,8]))`).
@@ -634,8 +687,18 @@ p_age
 
 In order to compare the model estimate of infants’ full day experience with previous studies, we excluded eleven sessions whose total recording time was less than 3 hours, which were useful for training and validating the models but insufficient for measuring day-long experience. We also excluded another two sessions where the family took the garment off for a substantial portion of time but did not log the time stamp of removal. The remaining 129 sessions have an average recording time of `r apa_num(mean(ds_sum_excl$total_time))` hours (*SD* = `r apa_num(sd(ds_sum_excl$total_time))`).
 
-The model prediction on the 129 full-day sessions converged with previous studies [@Carson2022n; @Franchak2019o; @Franchak2024l]. Younger infants aged from 4 to 7 months spent *M* = `r apa_num(stats_fullday[1,2]*100)`% (*SD* = `r apa_num(stats_fullday[1,3]*100)`%) of awake time restrained, and older infants aged from 11 to 14 months spent *M* = `r apa_num(stats_fullday[2,2]*100)`% (*SD* = `r apa_num(stats_fullday[2,3]*100)`%) of awake time restrained, which is comparable to the 46% restrained time for infants aged from 10 to 13 months in the previous EMA study [@Franchak2024l]. Moreover, @fig-agechange shows a significant group difference in restrained time between older infants and younger infants (*t* = `r apa_num(t_age[2,3])`, *p* `r apa_num(ifelse(t_age[2,4] < .001, "<.001", t_age[2,4]))`), supporting the convergent validity of the current system.
+The model prediction on the 129 full-day sessions converged with previous studies [@Carson2022n; @Franchak2019o; @Franchak2024l]. Younger infants aged from 4 to 7 months spent *M* = `r apa_num(stats_fullday[1,2]*100)`% (*SD* = `r apa_num(stats_fullday[
+1,3]*100)`%) of awake time restrained, and older infants aged from 11 to 14 months spent *M* = `r apa_num(stats_fullday[2,2]*100)`% (*SD* = `r apa_num(stats_fullday[2,3]*100)`%) of awake time restrained, which is comparable to the 46% restrained time for infants aged from 10 to 13 months in the previous EMA study [@Franchak2024l]. Moreover, @fig-agechange shows a significant group difference in restrained time between older infants and younger infants (*t* = `r apa_num(t_age[2,3])`, *p* `r apa_num(ifelse(t_age[2,4] < .001, "<.001", t_age[2,4]))`), supporting the convergent validity of the current system.
 
 # Discussions
+We validated a system that combines wearable sensors and machine learning models to quantify infants’ restrained experiences in the home environment. The model presented high accuracy and substantial kappa agreement with human-annotated ground truth. The model also presented convergent validity in overall estimate of restraint time and age-related change compared with previous studies. 
+
+We also examined the optimal window length for the classification (4 s, 16 s, and 30 s). All window lengths showed a slight prediction bias towards unrestrained class, which might be due to the inherent imbalance in the training data set—unrestrained periods were more prevalent than restrained periods. However, the 30 s window offered the most balanced detection compared to shorter windows. This advantage might be due to the contextual nature of restraint: infants may exhibit similar body movement whether restrained or not, and a restrained bout usually lasts minutes rather than seconds. A longer window can provide richer contextual information for distinguishing restrained from unrestrained states, whereas shorter windows only capture momentary movements that may appear similar across restrained and unrestrained periods. 
+
+A key contribution of this work is the extension of wearable-sensor methodology to detect infant restraint in naturalistic settings. Wearable sensors have been established as a reliable and unobtrusive approach for capturing full-day, time-series movement data. Previous works validated the use of wearable sensors in classifying infant positions. Our work shows the configuration of four sensors on thighs and ankles and random forest algorithms can also provide sufficiently accurate classification of infant restraint. Although the system cannot be as accurate as human annotation, the trade-off between accuracy and scale favors the sensor-based system, particularly when research questions is oriented at infants’ experiences fluctuating throughout a day or across multiple days. 
+
+With the validated system, researchers can now study infant restrained experiences in a longer time scale and a greater temporal precision. Research questions about the temporal structure of restrained periods can be addressed—for example, how frequently are infants switched between restrained and unrestrained states, or how restrained bouts are distributed across the day or multiple days? Moreover, the system enables investigations linking restraint to concurrent learning experiences: How does the temporal profile of restraint relate to motor development? How does adult language input or infants’ own vocalization patterns shift when they are restrained versus unrestrained?
+
+Moving forward, we can refine the model to differentiate between caregiver restraint and device restraint, as these contexts may differ in the perceptual, social, and cognitive input they afford. Nonetheless, quantifying infants’ general restrained experiences already represents a significant advance. This system provides a powerful tool for capturing infants’ physical contexts and how the contexts shape their daily learning opportunities.
 
 # References
