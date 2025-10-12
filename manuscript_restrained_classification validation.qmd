@@ -289,9 +289,9 @@ matrix_comb <- matrix_comb %>%
 ```
 
 ```{r tbl-indexbetweenmodels}
-#| apa-note: 
-#| tbl-cap: Performance metrics for each window length and ANOVA comparison across window lengths
+#| tbl-cap: Performance metrics according to window lengths
 #| ft.align: left
+#| apa-note: F, df, and p value indicate one-way ANOVA on each metric comparing across the three window lengths 
 
 # Compare between models
 # Descriptive
@@ -384,11 +384,8 @@ table_flex_btw_mdl
 ```
 
 ```{r tbl-cibtwctg}
-#| apa-note: Differences were calculated as restrained – unrestrained metric value. M = mean difference; CI = bootstrapped confidence interval. All window lengths had lower sensitivity and higher PPV for restrained period detection.
-#| tbl-cap: Differences in sensitivity and positive predictive value (PPV) between restrained and unrestrained prediction across window lengths
-#| ft.align: left
 # For per-class metrics (i.e., sens, ppv, f1), calculate the CI of the metric difference btw classes (i.e., r and u)
-
+# Don't need an APA table for this, but need the table to call values from
 # Function to bootstrap CI of gap for each model and each metric
 bootstrap_gap <- function(df, metric, B = 2000, gap_cal = F) {
   if (gap_cal == F){
@@ -446,50 +443,91 @@ table_btw_ctg <- crossing(model = model_labels, metric = c("sensitivity","pos_pr
          "M"="mean_gap",
          "95%CI lower bound"="ci_low",
          "95%CI upper bound"="ci_high")
-
-table_flex_btw_ctg <- table_btw_ctg %>% 
-  flextable() %>% flextable::theme_apa() %>% 
-  line_spacing(part = "all") %>%
-  merge_v(j = "Window Length") %>% fix_border_issues() %>% 
-  add_header_row(values = c("","", "Difference (rest.- unrest.)"), colwidths = c(1,1,3)) %>% 
-  hline(i = c(2,4,6), part = "body") %>%
-  padding(padding.top = 2, padding.bottom = 2) %>% 
-  set_table_properties(layout = "autofit", width = .99) %>% 
-  align(align = "center", part = "all")
-table_flex_btw_ctg
+# 
+# table_flex_btw_ctg <- table_btw_ctg %>% 
+#   flextable() %>% flextable::theme_apa() %>% 
+#   line_spacing(part = "all") %>%
+#   merge_v(j = "Window Length") %>% fix_border_issues() %>% 
+#   add_header_row(values = c("","", "Difference (rest.- unrest.)"), colwidths = c(1,1,3)) %>% 
+#   hline(i = c(2,4,6), part = "body") %>%
+#   padding(padding.top = 2, padding.bottom = 2) %>% 
+#   set_table_properties(layout = "autofit", width = .99) %>% 
+#   align(align = "center", part = "all")
+# table_flex_btw_ctg
 ```
 
 ```{r fig-cibtwctg}
-#| fig-cap: Differences in sensitivity and (PPV) between restrained and unrestrained prediction across window lengths
-#| fig-width: 8
+#| fig-cap: Differences in sensitivity and PPV between restrained and unrestrained prediction according to window lengths
+#| fig-width: 11
 #| fig-height: 5
-#| apa-note: Each vertical line indicates the 95%CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference. All window lengths had higher sensitivity for unrestrained period prediction and higher ppv for restrained period prediction.
+#| apa-note: Each vertical line indicates the 95%CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference.
 
-p_ci <- ggplot(table_btw_ctg, 
-       aes(x = Metric, 
-           y = `M`, 
-           ymin = `95%CI lower bound`, 
-           ymax = `95%CI upper bound`, 
-           color = `Window Length`)) +
+p_ci_sen <- ggplot (table_btw_ctg %>% 
+                      filter(Metric=="Sensitivity"),
+                    aes(x=`Window Length`, 
+                        y = `M`,
+                        ymin = `95%CI lower bound`, 
+                        ymax = `95%CI upper bound`, 
+                        color = `Window Length`))+
   geom_pointrange(position = position_dodge(width = 0.5), size = 0.7) +
-  geom_segment(aes(x = 0, xend = 3, y = 0, yend = 0),
-             linetype = "dashed", color = "gray")+
+  geom_segment(aes(x = 0, xend = 3.5, y = 0, yend = 0),
+             linetype = "dashed", color = "black")+
   scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
-  scale_x_discrete(expand = expansion(add = c(0,2)))+
   scale_y_continuous(
-    limits = c(-0.15, 0.1),  
-    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1) 
+    limits = c(-0.15, 0.05),
+    breaks = c(-0.15,-0.1, -0.05, 0, 0.05)
   )+
   theme_update() +
-  theme(legend.position = c(0.89,0.1))+ 
-  labs(x = "",y = "Metric value difference (rest.- unrest.)",
-    color = "Window Length")+
-  annotate("text", x = 3.5, y = -0.05, label="Unrestrained prediction \n has higher \n metric's value",color = "black")+
-  annotate("text", x = 3.5, y = 0.05, label="Restrained prediction \n has higher \n metric's value",color = "black")
+  labs(x = "",y = "Metric value of rest. - unrest.")+
+  guides(color="none")+
+  ggtitle("A. Sensitivity value difference")+
+  annotate("text", x = 2.6, y = -0.13, label="The model is more \n sensitive in detecting \n unrestrained bouts",color = "black")
+p_ci_sen
 
-p_ci
-# ggsave("figure/CI.png",width=7, height=5)
-# ggsave("figure/CI.eps",width=7, height=5)
+p_ci_ppv <-ggplot (table_btw_ctg %>% 
+                      filter(Metric=="PPV"),
+                    aes(x=`Window Length`, 
+                        y = `M`,
+                        ymin = `95%CI lower bound`, 
+                        ymax = `95%CI upper bound`, 
+                        color = `Window Length`))+
+  geom_pointrange(position = position_dodge(width = 0.5), size = 0.7) +
+  geom_segment(aes(x = 0, xend = 3.5, y = 0, yend = 0),
+             linetype = "dashed", color = "black")+
+  scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
+  scale_y_continuous(
+    limits = c(-0.05, 0.1),
+    breaks = c(-0.05, 0, 0.05, 0.1)
+  )+
+  theme_update() +
+  labs(x = "",y = "Metric value of rest. - unrest.")+
+  guides(color="none")+
+  ggtitle("B. PPV value difference")+
+  annotate("text", x = 2.6, y = 0.085, label="The model's prediction \n of restrained bouts \n is more reliable",color = "black")
+p_ci_ppv
+
+p_ci_sen | p_ci_ppv
+# p_ci <- ggplot(table_btw_ctg, 
+#        aes(x = Metric, 
+#            y = `M`, 
+#            ymin = `95%CI lower bound`, 
+#            ymax = `95%CI upper bound`, 
+#            color = `Window Length`)) +
+#   geom_pointrange(position = position_dodge(width = 0.5), size = 0.7) +
+#   geom_segment(aes(x = 0, xend = 3, y = 0, yend = 0),
+#              linetype = "dashed", color = "gray")+
+#   scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
+#   scale_x_discrete(expand = expansion(add = c(0,2)))+
+#   scale_y_continuous(
+#     limits = c(-0.15, 0.1),  
+#     breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1) 
+#   )+
+#   theme_update() +
+#   theme(legend.position = c(0.89,0.1))+ 
+#   labs(x = "",y = "Metric value difference (rest.- unrest.)",
+#     color = "Window Length")+
+#   annotate("text", x = 3.5, y = -0.05, label="Unrestrained prediction \n has higher \n metric's value",color = "black")+
+#   annotate("text", x = 3.5, y = 0.05, label="Restrained prediction \n has higher \n metric's value",color = "black")
 
 ```
 
@@ -514,7 +552,7 @@ table_prev <- df_prev %>%
   mutate(gap = map(prev_gap, ~ tibble(
     mean_gap = .x$mean_gap,
     ci_low   = .x$ci[1],
-    ci_high  = .x$ci[2]))) %>% 
+    ci_high  = .x$ci[2]))) %>%
   unnest(gap) %>% 
   mutate(model=recode(model,
                       "4_no_pos" = "4 s",
@@ -527,18 +565,19 @@ table_prev_100 <- table_prev %>%
          mean_gap = mean_gap *100,
          ci_low=ci_low * 100,
          ci_high=ci_high*100) %>% 
+  mutate(ci = paste0("[",round(ci_low, 2),", ", round(ci_high, 2), "]" )) %>% 
+  select(-ci_low, -ci_high) %>% 
   rename("Window Length" = "model",
-         "Human Annotation Prevalence" = "actual_prev",
-         "Model Prediction Prevalence" = "prev",
-         "Correlation" = "cor",
+         "Human Annotated" = "actual_prev",
+         "Model Predicted" = "prev",
+         "Correlation (r)" = "cor",
          "M" = "mean_gap",
-         "95%CI lower bound" = "ci_low",
-         "95%CI upper bound" = "ci_high")
+         "95%CI" = "ci")
 
 table_flex_prev <- table_prev_100 %>% 
   flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
   fix_border_issues() %>% 
-  add_header_row(values = c("","Prevalence (%)", "Prediction Error (%)"), colwidths = c(1,3,3)) %>% 
+  add_header_row(values = c("","Prevalence (%)", "","Prediction Error (%)"), colwidths = c(1,2,1,2)) %>% 
   hline(i = c(1,2,3)) %>% 
   padding(padding.top = 2, padding.bottom = 2) %>% 
   set_table_properties(layout = "autofit", width = .99) %>% 
@@ -547,11 +586,13 @@ table_flex_prev
 ```
 
 ```{r fig-prevalencegap}
-#| fig-cap: Prediction error between model prediction and human annotation
-#| fig-width: 6
+#| fig-cap: XX
+#| fig-width:11
 #| fig-height: 5
-#| apa-note: Prediction error is the difference in the overall restrained time between the model estimate and the human annotation. A negative prediction error indicates the model underestimate restrained time overall compared to human annotation. Each point denotes one session. The violin shape denotes the distribution of prediction error of each window length. The box denotes the first (Q1) quartile, the median, and the third (Q3) quartile of prediction error.
+#| apa-note: XX
 
+p_prev_cor <- ggplot(data=)
+  
 p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
                    mutate(model=recode(model,
                                        "4_no_pos" = "4 s",
@@ -571,6 +612,8 @@ p_prev_gap
 ```
 
 ```{r}
+#| eval: false
+#| include: false
 # check if the data set is imbalanced 
 matrix_comb %>% 
   filter(positive_class=="r") %>% 
@@ -587,6 +630,8 @@ ggplot(matrix_comb %>% filter(positive_class=="r"), aes(x = prevalence, color=mo
 ```
 
 ```{r}
+#| eval: false
+#| include: false
 # check accuracy outliers 
 outlier_4 <- matrix_comb %>%
   filter(model == "4_no_pos", positive_class=="r") %>%
