@@ -383,7 +383,7 @@ table_flex_btw_mdl <- table_btw_mdl %>%
 table_flex_btw_mdl
 ```
 
-```{r tbl-cibtwctg}
+```{r}
 # For per-class metrics (i.e., sens, ppv, f1), calculate the CI of the metric difference btw classes (i.e., r and u)
 # Don't need an APA table for this, but need the table to call values from
 # Function to bootstrap CI of gap for each model and each metric
@@ -459,7 +459,7 @@ table_btw_ctg <- crossing(model = model_labels, metric = c("sensitivity","pos_pr
 ```{r fig-cibtwctg}
 #| fig-cap: Differences in sensitivity and PPV between restrained and unrestrained prediction according to window lengths
 #| fig-width: 11
-#| fig-height: 5
+#| fig-height: 7
 #| apa-note: Each vertical line indicates the 95%CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference.
 
 p_ci_sen <- ggplot (table_btw_ctg %>% 
@@ -474,15 +474,14 @@ p_ci_sen <- ggplot (table_btw_ctg %>%
              linetype = "dashed", color = "black")+
   scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
   scale_y_continuous(
-    limits = c(-0.15, 0.05),
-    breaks = c(-0.15,-0.1, -0.05, 0, 0.05)
+    limits = c(-0.15, 0.1),
+    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1, 0.1)
   )+
   theme_update() +
-  labs(x = "",y = "Metric value of rest. - unrest.")+
+  labs(x = "",y = "Metric value difference (rest. - unrest.)")+
   guides(color="none")+
   ggtitle("A. Sensitivity value difference")+
   annotate("text", x = 2.6, y = -0.13, label="The model is more \n sensitive in detecting \n unrestrained bouts",color = "black")
-p_ci_sen
 
 p_ci_ppv <-ggplot (table_btw_ctg %>% 
                       filter(Metric=="PPV"),
@@ -496,43 +495,20 @@ p_ci_ppv <-ggplot (table_btw_ctg %>%
              linetype = "dashed", color = "black")+
   scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
   scale_y_continuous(
-    limits = c(-0.05, 0.1),
-    breaks = c(-0.05, 0, 0.05, 0.1)
+    limits = c(-0.15, 0.1),
+    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1, 0.1)
   )+
   theme_update() +
-  labs(x = "",y = "Metric value of rest. - unrest.")+
+  labs(x = "",y = "")+
   guides(color="none")+
   ggtitle("B. PPV value difference")+
-  annotate("text", x = 2.6, y = 0.085, label="The model's prediction \n of restrained bouts \n is more reliable",color = "black")
-p_ci_ppv
+  annotate("text", x = 2.6, y = 0.085, label="The model's prediction \n of restrained bouts \n is more credible",color = "black")
 
-p_ci_sen | p_ci_ppv
-# p_ci <- ggplot(table_btw_ctg, 
-#        aes(x = Metric, 
-#            y = `M`, 
-#            ymin = `95%CI lower bound`, 
-#            ymax = `95%CI upper bound`, 
-#            color = `Window Length`)) +
-#   geom_pointrange(position = position_dodge(width = 0.5), size = 0.7) +
-#   geom_segment(aes(x = 0, xend = 3, y = 0, yend = 0),
-#              linetype = "dashed", color = "gray")+
-#   scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
-#   scale_x_discrete(expand = expansion(add = c(0,2)))+
-#   scale_y_continuous(
-#     limits = c(-0.15, 0.1),  
-#     breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1) 
-#   )+
-#   theme_update() +
-#   theme(legend.position = c(0.89,0.1))+ 
-#   labs(x = "",y = "Metric value difference (rest.- unrest.)",
-#     color = "Window Length")+
-#   annotate("text", x = 3.5, y = -0.05, label="Unrestrained prediction \n has higher \n metric's value",color = "black")+
-#   annotate("text", x = 3.5, y = 0.05, label="Restrained prediction \n has higher \n metric's value",color = "black")
-
+(p_ci_sen + p_ci_ppv)
 ```
 
 ```{r tbl-prevalencecor}
-#| apa-note: Prevalence was calculated as the proportion of restrained periods among all window samples for each session. Prediction error was calculated as model prediction prevalence - human annotation prevalence. A negative prediction error means an underestimate from model prediction. M = mean difference; CI = bootstrapped confidence interval. 
+#| apa-note: Prevalence was calculated as the proportion of restrained periods among all window samples for each session. Prediction error was calculated as model predicted prevalence minus human annotated prevalence. A negative prediction error means model prediction underestimates the restrained time compared to human annotation. M = mean difference; CI = bootstrapped confidence interval. 
 #| tbl-cap: Model predicted and human annotated prevalence of restrained periods, their correlation, and differences
 #| ft.align: left
 
@@ -577,7 +553,7 @@ table_prev_100 <- table_prev %>%
 table_flex_prev <- table_prev_100 %>% 
   flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
   fix_border_issues() %>% 
-  add_header_row(values = c("","Prevalence (%)", "","Prediction Error (%)"), colwidths = c(1,2,1,2)) %>% 
+  add_header_row(values = c("","Mean of Prevalence (%)", "","Prediction Error (%)"), colwidths = c(1,2,1,2)) %>% 
   hline(i = c(1,2,3)) %>% 
   padding(padding.top = 2, padding.bottom = 2) %>% 
   set_table_properties(layout = "autofit", width = .99) %>% 
@@ -586,29 +562,57 @@ table_flex_prev
 ```
 
 ```{r fig-prevalencegap}
-#| fig-cap: XX
-#| fig-width:11
+#| fig-cap: Restraint prevalence 
+#| fig-width: 11
 #| fig-height: 5
-#| apa-note: XX
+#| apa-note: Prevalence is defined as the proportion of windows predicted (or annotated) as restrained among all windows. (A) shows the correlation of prevalence between model prediction and human annotation. The black dashed line denotes the reference of y=x. Each dot is a session for a specific window length. (B) shows the difference of prevalence between human annotation and model prediction (i.e., prediction error). A negative prediction error indicates the model estimated less amount of time infants were restrained compared to human annotation. The line in the box denotes the median; the boarder lines of the box denotes the first (Q1) quartile and the third (Q3) quartile; and the lines extended denotes the min and max data points within the range of 1.5 IQR (i.e., Q3-Q1).
 
-p_prev_cor <- ggplot(data=)
+p_prev_cor <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
+                   mutate(model=recode(model,
+                                       "4_no_pos" = "4 s",
+                                       "16_no_pos" = "16 s",
+                                       "30_no_pos" = "30 s")),
+                 aes(x=prevalence, y=detection_prevalence,
+                     color=model))+
+  geom_point(shape = 16,size = 5, alpha=.4) + 
+  geom_abline(intercept = 0, slope = 1, linetype="dashed", color = "black") +
+  geom_smooth(method = "lm", se = FALSE) +  
+  geom_text(data = table_prev,
+            aes(x = c(1.15,1.15,1.15),
+                y = c(.7,.8,.9),
+                label = paste0("r = ", round(cor,2)),
+                color = model), 
+            show.legend = FALSE) +
+  scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
+  scale_x_continuous(limits = c(0,1.3), breaks=c(0,.5,1)) +
+  scale_y_continuous(limits = c(0,1), breaks=c(0,.5,1))+
+  labs(x = "Human annotated prevalence", y = "Model predicted prevalence", color="Window Length")+
+  theme_update()+
+  theme(legend.position = c(0.8, 0.2))+
+  ggtitle("A. Prevalence Correlation")
   
 p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
                    mutate(model=recode(model,
                                        "4_no_pos" = "4 s",
                                        "16_no_pos" = "16 s",
                                        "30_no_pos" = "30 s")),
-                 aes(x=model, y=detection_prevalence-prevalence, color=model))+
-  geom_violin(trim = FALSE, alpha = 0.4) +
-  geom_quasirandom(aes(color = model),
-                   dodge.width = 0.7, varwidth = TRUE, alpha = 0.6, size = 2) +
+                 aes(x=model, y=(detection_prevalence-prevalence)*100, color=model))+
+  # geom_violin(trim = FALSE, alpha = 0.4) +
+  # geom_quasirandom(aes(color = model),
+  #                  dodge.width = 0.7, varwidth = TRUE, alpha = 0.6, size = 2) +
   geom_boxplot(width = 0.1, outlier.shape = NA, fill = "white") + 
   geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
   scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
-  labs(x="Window Length", y="Prediction Error (prediction-human annotation)")+
+  scale_y_continuous(
+    limits = c(-20,20),
+    breaks = c(-20, -10, 0, 10, 20)
+  )+
+  labs(x="Window Length", y="Prediction Error (%)")+
   guides(color = "none")+
-  theme_update()
-p_prev_gap
+  theme_update()+
+  ggtitle("B. Prevalence Offset")
+
+(p_prev_cor+p_prev_gap)
 ```
 
 ```{r}
@@ -675,7 +679,7 @@ Meanwhile, @tbl-prevalencecor shows that all window lengths provided reliable ov
 
 ### Bias Towards Unrestrained Class Across Window Lengths
 
-Despite the overall good performance, all window lengths presented prediction bias towards unrestrained class. @tbl-cibtwctg and @fig-cibtwctg show that all window lengths had lower sensitivity and higher positive predictive value (PPV) for restrained compared to unrestrained periods, indicated by the negative difference of sensitivity and positive difference of PPV. The sensitivity difference for 4 s window was `r apa_num(table_btw_ctg[1,3])`, 95% bootstrapped CI [`r apa_num(table_btw_ctg[1,4])`, `r apa_num(table_btw_ctg[1,5])`], for 16 s window was `r apa_num(table_btw_ctg[3,3])`, 95% CI [`r apa_num(table_btw_ctg[3,4])`, `r apa_num(table_btw_ctg[3,5])`], and for 30 s window was `r apa_num(table_btw_ctg[5,3])`, 95% CI [`r apa_num(table_btw_ctg[5,4])`, `r apa_num(table_btw_ctg[5,5])`]. The PPV difference for 4 s window was `r apa_num(table_btw_ctg[2,3])`, 95% CI [`r apa_num(table_btw_ctg[2,4])`, `r apa_num(table_btw_ctg[2,5])`], for 16 s window was `r apa_num(table_btw_ctg[4,3])`, 95% CI [`r apa_num(table_btw_ctg[4,4])`, `r apa_num(table_btw_ctg[4,5])`], and for 30 s window was `r apa_num(table_btw_ctg[6,3])`, 95% CI [`r apa_num(table_btw_ctg[6,4])`, `r apa_num(table_btw_ctg[6,5])`]. The differences indicate that the model tended to under-detect restrained periods but was reliable when labeling a period as restrained. Conversely, it overestimated unrestrained periods, with lower reliability in unrestrained prediction. While none of the window lengths were free from bias, the 30 s window presented a more balanced detection between restrained and unrestrained periods.
+Despite the overall good performance, all window lengths presented prediction bias towards unrestrained class. @fig-cibtwctg show that all window lengths had lower sensitivity and higher positive predictive value (PPV) for restrained compared to unrestrained periods, indicated by the negative difference of sensitivity and positive difference of PPV. The sensitivity difference for 4 s window was `r apa_num(table_btw_ctg[1,3])`, 95% bootstrapped CI [`r apa_num(table_btw_ctg[1,4])`, `r apa_num(table_btw_ctg[1,5])`], for 16 s window was `r apa_num(table_btw_ctg[3,3])`, 95% CI [`r apa_num(table_btw_ctg[3,4])`, `r apa_num(table_btw_ctg[3,5])`], and for 30 s window was `r apa_num(table_btw_ctg[5,3])`, 95% CI [`r apa_num(table_btw_ctg[5,4])`, `r apa_num(table_btw_ctg[5,5])`]. The PPV difference for 4 s window was `r apa_num(table_btw_ctg[2,3])`, 95% CI [`r apa_num(table_btw_ctg[2,4])`, `r apa_num(table_btw_ctg[2,5])`], for 16 s window was `r apa_num(table_btw_ctg[4,3])`, 95% CI [`r apa_num(table_btw_ctg[4,4])`, `r apa_num(table_btw_ctg[4,5])`], and for 30 s window was `r apa_num(table_btw_ctg[6,3])`, 95% CI [`r apa_num(table_btw_ctg[6,4])`, `r apa_num(table_btw_ctg[6,5])`]. The differences indicate that the model tended to under-detect restrained periods but was reliable when labeling a period as restrained. Conversely, it overestimated unrestrained periods, with lower reliability in unrestrained prediction. While none of the window lengths were free from bias, the 30 s window presented a more balanced detection between restrained and unrestrained periods.
 
 The prediction bias was also evident when examining the model’s overall estimate of restrained time and its difference from human annotation. @tbl-prevalencecor and @fig-prevalencegap show a consistent underestimate of restrained periods despite the high correlation of the overall estimate. The 4 s window missed `r apa_num(abs(table_prev[1,5])*100)`% of time that were annotated as restrained (95% CI [`r apa_num(abs(table_prev[1,6])*100)`%, `r apa_num(abs(table_prev[1,7])*100)`%]), the 16 s window missed `r apa_num(abs(table_prev[2,5])*100)`% (95% CI [`r apa_num(abs(table_prev[2,6])*100)`%, `r apa_num(abs(table_prev[2,7])*100)`%]]), and the 30 s window missed the least amount of `r apa_num(abs(table_prev[3,5])*100)`% (95% CI [`r apa_num(abs(table_prev[3,6])*100)`%, `r apa_num(abs(table_prev[3,7])*100)`%]). Taken together, 30 s turned out to be the best window length out of the three, which brought about a balanced performance across classes. We then applied the 30 s model to process the full-day sensor data.
 
@@ -702,31 +706,19 @@ stats_fullday <- ds_sum_excl %>%
 #| fig-cap: Infants' full day restrained time proportion with age
 #| fig-width: 4
 #| fig-height: 3
-#| apa-note: Each point denotes one session's restrained time proportion processed by the 30 s model. The box denotes the first (Q1) quartile, the median, and the third (Q3) quartile of prediction error.
+#| apa-note: Each point denotes one session. The line denotes the group mean of restrained time (%)
 
 t_age <- summary(lm(restrained_prop ~ age_group, data = ds_sum_excl))$coefficients # t test
 
-ds_sum_excl <- ds_sum_excl %>% 
-  mutate(age_group_num=ifelse(age_group=="Younger",5.5, 12.5))
-
-p_age <- ggplot(ds_sum_excl, aes(x=agemo, y=restrained_prop)) +
-  geom_point(shape = 1,size = 3) + 
-  geom_boxplot(
-    aes(x = age_group_num, y = restrained_prop, group = age_group_num),
-    inherit.aes = FALSE,
-    width = 3,
-    alpha = 0.2,
-    outlier.shape = NA,
-    color = "blue"
-  ) +
-  scale_x_continuous(name = "Age Group", breaks = c(5.5, 12.5), labels=c("Young", "Old"), limits = c(3,15)) +
+p_age <- ggplot(ds_sum_excl, aes(x=age_group, y=restrained_prop)) +
+  geom_jitter(width=.2, shape = 1,size = 3, color="black") + 
+  stat_summary(fun = mean, geom = "crossbar",
+               width = 0.4, color = "red") +
   scale_y_continuous(name = "Restrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))+
   theme_update()+
   labs(x="Age Group")
 
 p_age
-# ggsave("figure/age_related_change.png",width=6, height=4)
-# ggsave("figure/age_related_change.eps",width=6, height=4)
 
 ```
 
