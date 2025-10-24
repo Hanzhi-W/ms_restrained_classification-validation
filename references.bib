@@ -42,7 +42,7 @@
   abstract     = "Julia implementation of Decision Tree (CART) and Random Forest
                   algorithms",
   howpublished = "\url{https://juliapackages.com/p/decisiontree}",
-  note         = "Accessed: 2025-9-16",
+  note         = "Accessed: 2025-10-24",
   language     = "en"
 }
 
@@ -516,7 +516,8 @@
                evolving in an environment to which it becomes adapted, and an
                individual acting in its own niche, developing and learning.",
   month     =  aug,
-  year      =  2000
+  year      =  2000,
+  language  = "en"
 }
 
 @ARTICLE{Wang2025v,
@@ -801,13 +802,6 @@
   keywords  = "Body position; Everyday experiences; Machine learning; Motor
                development; Sitting",
   language  = "en"
-}
-
-@MISC{OtherOtherq,
-  title        = "Databrary",
-  howpublished = "\url{https://nyu.databrary.org/volume/1637.}",
-  note         = "Accessed: 2025-9-16",
-  language     = "en"
 }
 
 @ARTICLE{Hesketh2015i,
@@ -1566,15 +1560,6 @@
   language  = "en"
 }
 
-@ARTICLE{Breiman2001t,
-  title   = "Random Forests",
-  author  = "Breiman, Leo",
-  journal = "Mach. Learn.",
-  volume  =  45,
-  pages   = "5--32",
-  year    =  2001
-}
-
 @ARTICLE{Airaksinen2025l,
   title    = "Trade-offs between simplifying inertial measurement unit-based
               movement recordings and the attainability of different levels of
@@ -1652,7 +1637,7 @@
   author    = "Anisfeld, Elizabeth and Casper, Virginia and Nozyce, Molly and
                Cunningham, Nicholas",
   journal   = "Child Dev.",
-  publisher = "JSTOR",
+  publisher = "Wiley",
   volume    =  61,
   number    =  5,
   pages     =  1617,
@@ -1661,8 +1646,9 @@
 }
 
 @ARTICLE{Abbott2001u,
-  title     = "Infant motor development and equipment use in the home",
-  author    = "Abbott, A and Bartlett, D",
+  title     = "Infant motor development and equipment use in the home:
+               \textit{Infant motor development and equipment use in the home}",
+  author    = "Abbott, A L and Bartlett, D J",
   journal   = "Child Care Health Dev.",
   publisher = "Wiley",
   volume    =  27,
@@ -1839,47 +1825,49 @@
 }
 
 @ARTICLE{Duda-Golawska2024s,
-  title    = "Identifying infant body position from inertial sensors with
-              machine learning: Which parameters matter?",
-  author   = "Duda-Goławska, Joanna and Rogowski, Aleksander and Laudańska,
-              Zuzanna and Żygierewicz, Jarosław and Tomalski, Przemysław",
-  journal  = "Sensors (Basel)",
-  volume   =  24,
-  number   =  23,
-  abstract = "The efficient classification of body position is crucial for
-              monitoring infants' motor development. It may fast-track the early
-              detection of developmental issues related not only to the
-              acquisition of motor milestones but also to postural stability and
-              movement patterns. In turn, this may facilitate and enhance
-              opportunities for early intervention that are crucial for
-              promoting healthy growth and development. The manual
-              classification of human body position based on video recordings is
-              labour-intensive, leading to the adoption of Inertial Motion Unit
-              (IMU) sensors. IMUs measure acceleration, angular velocity, and
-              magnetic field intensity, enabling the automated classification of
-              body position. Many research teams are currently employing
-              supervised machine learning classifiers that utilise hand-crafted
-              features for data segment classification. In this study, we used a
-              longitudinal dataset of IMU recordings made in the lab in three
-              different play activities of infants aged 4-12 months. The
-              classification was conducted based on manually annotated video
-              recordings. We found superior performance of the CatBoost
-              Classifier over the Random Forest Classifier in the task of
-              classifying five positions based on IMU sensor data from infants,
-              yielding excellent classification accuracy of the Supine (97.7\%),
-              Sitting (93.5\%), and Prone (89.9\%) positions. Moreover, using
-              data ablation experiments and analysing the SHAP (SHapley Additive
-              exPlanations) values, the study assessed the importance of various
-              groups of features from both the time and frequency domains. The
-              results highlight that both accelerometer and magnetometer data,
-              especially their statistical characteristics, are critical
-              contributors to improving the accuracy of body position
-              classification.",
-  month    =  dec,
-  year     =  2024,
-  keywords = "explainable machine learning; human activity recognition; inertial
-              motion sensors",
-  language = "en"
+  title     = "Identifying infant body position from inertial sensors with
+               machine learning: Which parameters matter?",
+  author    = "Duda-Goławska, Joanna and Rogowski, Aleksander and Laudańska,
+               Zuzanna and Żygierewicz, Jarosław and Tomalski, Przemysław",
+  journal   = "Sensors (Basel)",
+  publisher = "MDPI AG",
+  volume    =  24,
+  number    =  23,
+  pages     =  7809,
+  abstract  = "The efficient classification of body position is crucial for
+               monitoring infants' motor development. It may fast-track the
+               early detection of developmental issues related not only to the
+               acquisition of motor milestones but also to postural stability
+               and movement patterns. In turn, this may facilitate and enhance
+               opportunities for early intervention that are crucial for
+               promoting healthy growth and development. The manual
+               classification of human body position based on video recordings
+               is labour-intensive, leading to the adoption of Inertial Motion
+               Unit (IMU) sensors. IMUs measure acceleration, angular velocity,
+               and magnetic field intensity, enabling the automated
+               classification of body position. Many research teams are
+               currently employing supervised machine learning classifiers that
+               utilise hand-crafted features for data segment classification. In
+               this study, we used a longitudinal dataset of IMU recordings made
+               in the lab in three different play activities of infants aged
+               4-12 months. The classification was conducted based on manually
+               annotated video recordings. We found superior performance of the
+               CatBoost Classifier over the Random Forest Classifier in the task
+               of classifying five positions based on IMU sensor data from
+               infants, yielding excellent classification accuracy of the Supine
+               (97.7\%), Sitting (93.5\%), and Prone (89.9\%) positions.
+               Moreover, using data ablation experiments and analysing the SHAP
+               (SHapley Additive exPlanations) values, the study assessed the
+               importance of various groups of features from both the time and
+               frequency domains. The results highlight that both accelerometer
+               and magnetometer data, especially their statistical
+               characteristics, are critical contributors to improving the
+               accuracy of body position classification.",
+  month     =  dec,
+  year      =  2024,
+  keywords  = "explainable machine learning; human activity recognition;
+               inertial motion sensors",
+  language  = "en"
 }
 
 @ARTICLE{Hunziker1986u,
@@ -2031,4 +2019,40 @@
   publisher = "The Netherlands: Martinus Nijhoff, Dordrecht",
   pages     = "341--360",
   year      =  1986
+}
+
+@MISC{OtherOtherq,
+  title        = "Databrary",
+  howpublished = "\url{https://nyu.databrary.org/volume/1637.}",
+  note         = "Accessed: 2025-10-24",
+  language     = "en"
+}
+
+@ARTICLE{Breiman2001t,
+  title     = "Random forests",
+  author    = "Breiman, Leo",
+  journal   = "Mach. Learn.",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  45,
+  number    =  1,
+  pages     = "5--32",
+  abstract  = "Random forests are a combination of tree predictors such that
+               each tree depends on the values of a random vector sampled
+               independently and with the same distribution for all trees in the
+               forest. The generalization error for forests converges a.s. to a
+               limit as the number of trees in the forest becomes large. The
+               generalization error of a forest of tree classifiers depends on
+               the strength of the individual trees in the forest and the
+               correlation between them. Using a random selection of features to
+               split each node yields error rates that compare favorably to
+               Adaboost (Y. Freund \& R. Schapire, Machine Learning: Proceedings
+               of the Thirteenth International conference, ***, 148–156), but
+               are more robust with respect to noise. Internal estimates monitor
+               error, strength, and correlation and these are used to show the
+               response to increasing the number of features used in the
+               splitting. Internal estimates are also used to measure variable
+               importance. These ideas are also applicable to regression.",
+  month     =  oct,
+  year      =  2001,
+  language  = "en"
 }
