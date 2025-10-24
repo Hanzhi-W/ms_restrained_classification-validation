@@ -128,15 +128,16 @@ library(DescTools)
 set.seed(2025)
 knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
 
-theme_update(text = element_text(size = 11),
-             axis.text.x = element_text(size = 11, color = "black"),
-             axis.title.x = element_text(size = 12),
-             axis.text.y = element_text(size = 11,  color = "black"),
-             axis.title.y = element_text(size = 12),
-             panel.background = element_blank(),panel.border = element_blank(),
+theme_update(text = element_text(size = 12),
+             axis.text.x = element_text(size = 12, color = "black"), 
+             axis.title.x = element_text(size = 14),
+             axis.text.y = element_text(size = 12,  color = "black"), 
+             axis.title.y = element_text(size = 14), 
+             panel.background = element_blank(),panel.border = element_blank(), 
              panel.grid.major = element_blank(),
-             panel.grid.minor = element_blank(), axis.line = element_blank(),
-             legend.key = element_rect(fill = "white"))
+             panel.grid.minor = element_blank(), axis.line = element_blank(), 
+             axis.ticks.length=unit(.25, "cm"), 
+             legend.key = element_rect(fill = "white")) 
 
 model_labels <- c("4_no_pos", "16_no_pos", "30_no_pos")
 model_shapes <- c(5,1,2) %>% set_names(model_labels)
@@ -289,7 +290,7 @@ matrix_comb <- matrix_comb %>%
 ```
 
 ```{r tbl-indexbetweenmodels}
-#| tbl-cap: Performance metrics according to window lengths
+#| tbl-cap: Performance metrics according to window length
 #| ft.align: left
 #| apa-note: F, df, and p value indicate one-way ANOVA on each metric comparing across the three window lengths 
 
@@ -458,9 +459,9 @@ table_btw_ctg <- crossing(model = model_labels, metric = c("sensitivity","pos_pr
 
 ```{r fig-cibtwctg}
 #| fig-cap: Differences in sensitivity and PPV between restrained and unrestrained prediction according to window lengths
-#| fig-width: 11
-#| fig-height: 7
-#| apa-note: Each vertical line indicates the 95%CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference.
+#| fig-width: 8
+#| fig-height: 5
+#| apa-note: Each vertical line indicates the 95%CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference (restrained - unrestrained).
 
 p_ci_sen <- ggplot (table_btw_ctg %>% 
                       filter(Metric=="Sensitivity"),
@@ -470,18 +471,29 @@ p_ci_sen <- ggplot (table_btw_ctg %>%
                         ymax = `95%CI upper bound`, 
                         color = `Window Length`))+
   geom_pointrange(position = position_dodge(width = 0.5), size = 0.7) +
-  geom_segment(aes(x = 0, xend = 3.5, y = 0, yend = 0),
+  geom_segment(aes(x = 0.5, xend = 4, y = 0, yend = 0),
              linetype = "dashed", color = "black")+
   scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
   scale_y_continuous(
-    limits = c(-0.15, 0.1),
-    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1, 0.1)
+    limits = c(-0.15, 0.15),
+    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1, 0.15)
   )+
-  theme_update() +
   labs(x = "",y = "Metric value difference (rest. - unrest.)")+
   guides(color="none")+
   ggtitle("A. Sensitivity value difference")+
-  annotate("text", x = 2.6, y = -0.13, label="The model is more \n sensitive in detecting \n unrestrained bouts",color = "black")
+  annotate("text", x = 3.8, y = -0.12, label="More sensitive \n to unrestrained",color = "black", hjust=1, size = 4.5)+
+  annotate("segment",
+         x = 3.9, xend = 3.9,  # arrow start → end
+         y = -0.1,  yend = -0.14,
+         arrow = arrow(length = unit(0.2, "cm")),
+         size = 1, color = "black")+
+  annotate("text", x = 3.8, y = 0.12, label="More sensitive \n to restrained",color = "black", hjust=1, size = 4.5)+
+  annotate("segment",
+           x = 3.9, xend = 3.9,  # arrow start → end
+           y = 0.1,  yend = 0.14,
+           arrow = arrow(length = unit(0.2, "cm")),
+           size = 1, color = "black")+
+  theme_update()
 
 p_ci_ppv <-ggplot (table_btw_ctg %>% 
                       filter(Metric=="PPV"),
@@ -491,27 +503,35 @@ p_ci_ppv <-ggplot (table_btw_ctg %>%
                         ymax = `95%CI upper bound`, 
                         color = `Window Length`))+
   geom_pointrange(position = position_dodge(width = 0.5), size = 0.7) +
-  geom_segment(aes(x = 0, xend = 3.5, y = 0, yend = 0),
+  geom_segment(aes(x = 0.5, xend = 4, y = 0, yend = 0),
              linetype = "dashed", color = "black")+
   scale_color_manual(values=model_colors,labels=c("4 s","16 s", "30 s")) +
   scale_y_continuous(
-    limits = c(-0.15, 0.1),
-    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1, 0.1)
+    limits = c(-0.15, 0.15),
+    breaks = c(-0.15,-0.1, -0.05, 0, 0.05, 0.1, 0.15)
   )+
-  theme_update() +
   labs(x = "",y = "")+
   guides(color="none")+
   ggtitle("B. PPV value difference")+
-  annotate("text", x = 2.6, y = 0.085, label="The model's prediction \n of restrained bouts \n is more credible",color = "black")
+  annotate("text", x = 3.8, y = -0.12, label="More credible \n unrestrained predictions",color = "black", hjust=1, size = 4.5)+
+  annotate("segment",
+         x = 3.9, xend = 3.9,  # arrow start → end
+         y = -0.1,  yend = -0.14,
+         arrow = arrow(length = unit(0.2, "cm")),
+         size = 1, color = "black")+
+  annotate("text", x = 3.8, y = 0.12, label="More credible \n restrained predictions",color = "black", hjust=1, size = 4.5)+
+  annotate("segment",
+           x = 3.9, xend = 3.9,  # arrow start → end
+           y = 0.1,  yend = 0.14,
+           arrow = arrow(length = unit(0.2, "cm")),
+           size = 1, color = "black")+
+  theme_update()
 
 (p_ci_sen + p_ci_ppv)
 ```
 
-```{r tbl-prevalencecor}
-#| apa-note: Prevalence was calculated as the proportion of restrained periods among all window samples for each session. Prediction error was calculated as model predicted prevalence minus human annotated prevalence. A negative prediction error means model prediction underestimates the restrained time compared to human annotation. M = mean difference; CI = bootstrapped confidence interval. 
-#| tbl-cap: Model predicted and human annotated prevalence of restrained periods, their correlation, and differences
-#| ft.align: left
-
+```{r}
+# Table. Model predicted and human annotated prevalence of restrained periods, their correlation, and differences
 df_prev <- matrix_comb %>%
   filter(positive_class=="r") %>%
   select(model, id, session, detection_prevalence, prevalence) %>% 
@@ -535,37 +555,35 @@ table_prev <- df_prev %>%
                        "16_no_pos" = "16 s",
                        "30_no_pos" = "30 s"))
 
-table_prev_100 <- table_prev %>% 
-  mutate(actual_prev=actual_prev*100,
-         prev = prev*100, 
-         mean_gap = mean_gap *100,
-         ci_low=ci_low * 100,
-         ci_high=ci_high*100) %>% 
-  mutate(ci = paste0("[",round(ci_low, 2),", ", round(ci_high, 2), "]" )) %>% 
-  select(-ci_low, -ci_high) %>% 
-  rename("Window Length" = "model",
-         "Human Annotated" = "actual_prev",
-         "Model Predicted" = "prev",
-         "Correlation (r)" = "cor",
-         "M" = "mean_gap",
-         "95%CI" = "ci")
-
-table_flex_prev <- table_prev_100 %>% 
-  flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
-  fix_border_issues() %>% 
-  add_header_row(values = c("","Mean of Prevalence (%)", "","Prediction Error (%)"), colwidths = c(1,2,1,2)) %>% 
-  hline(i = c(1,2,3)) %>% 
-  padding(padding.top = 2, padding.bottom = 2) %>% 
-  set_table_properties(layout = "autofit", width = .99) %>% 
-  align(align = "center", part = "all")
-table_flex_prev
+# table_prev_100 <- table_prev %>% 
+#   mutate(actual_prev=actual_prev*100,
+#          prev = prev*100, 
+#          mean_gap = mean_gap *100,
+#          ci_low=ci_low * 100,
+#          ci_high=ci_high*100) %>% 
+#   mutate(ci = paste0("[",round(ci_low, 2),", ", round(ci_high, 2), "]" )) %>% 
+#   select(-ci_low, -ci_high, -actual_prev, -prev) %>% 
+#   rename("Window Length" = "model",
+#          "Correlation (r)" = "cor",
+#          "M" = "mean_gap",
+#          "95%CI" = "ci")
+# 
+# table_flex_prev <- table_prev_100 %>% 
+#   flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
+#   fix_border_issues() %>% 
+#   add_header_row(values = c("","Prediction Error (%)"), colwidths = c(2,2)) %>% 
+#   hline(i = c(1,2,3)) %>% 
+#   padding(padding.top = 2, padding.bottom = 2) %>% 
+#   set_table_properties(layout = "autofit", width = .99) %>% 
+#   align(align = "center", part = "all")
+# table_flex_prev
 ```
 
 ```{r fig-prevalencegap}
 #| fig-cap: Restraint prevalence 
-#| fig-width: 11
-#| fig-height: 5
-#| apa-note: Prevalence is defined as the proportion of windows predicted (or annotated) as restrained among all windows. (A) shows the correlation of prevalence between model prediction and human annotation. The black dashed line denotes the reference of y=x. Each dot is a session for a specific window length. (B) shows the difference of prevalence between human annotation and model prediction (i.e., prediction error). A negative prediction error indicates the model estimated less amount of time infants were restrained compared to human annotation. The line in the box denotes the median; the boarder lines of the box denotes the first (Q1) quartile and the third (Q3) quartile; and the lines extended denotes the min and max data points within the range of 1.5 IQR (i.e., Q3-Q1).
+#| fig-width: 8
+#| fig-height: 4
+#| apa-note: Prevalence is defined as the proportion of windows predicted (or annotated) as restrained among all windows. (A) shows the correlation of prevalence between model prediction and human annotation. The black dashed identity line indicates perfect agreement. Each circular symbol represents one session for a specific window length (denoted by color). (B) shows the difference of prevalence between human annotation and model prediction (i.e., prediction error). A negative prediction error indicates the model estimated less amount of time infants were restrained compared to human annotation. The horizontal line in the box denotes the median; the boarder lines of the box denotes the first (Q1) quartile and the third (Q3) quartile; and the lines extended denotes the min and max data points within the range of 1.5 IQR (i.e., Q3-Q1).
 
 p_prev_cor <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
                    mutate(model=recode(model,
@@ -574,32 +592,31 @@ p_prev_cor <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
                                        "30_no_pos" = "30 s")),
                  aes(x=prevalence, y=detection_prevalence,
                      color=model))+
-  geom_point(shape = 16,size = 5, alpha=.4) + 
+  geom_point(shape = 16,size = 3, alpha=.3) + 
   geom_abline(intercept = 0, slope = 1, linetype="dashed", color = "black") +
   geom_smooth(method = "lm", se = FALSE) +  
   geom_text(data = table_prev,
-            aes(x = c(1.15,1.15,1.15),
+            aes(x = c(1.16,1.16,1.16),
                 y = c(.7,.8,.9),
                 label = paste0("r = ", round(cor,2)),
-                color = model), 
+                color = model, size = 12), 
             show.legend = FALSE) +
   scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
-  scale_x_continuous(limits = c(0,1.3), breaks=c(0,.5,1)) +
+  scale_x_continuous(limits = c(0,1.2), breaks=c(0,.5,1)) +
   scale_y_continuous(limits = c(0,1), breaks=c(0,.5,1))+
-  labs(x = "Human annotated prevalence", y = "Model predicted prevalence", color="Window Length")+
+  coord_cartesian(clip = "off")+
+  labs(x = "Human annotated prevalence", y = "Model predicted prevalence")+
   theme_update()+
-  theme(legend.position = c(0.8, 0.2))+
+  theme(axis.title.x = element_text(hjust = 0.37))+
+  guides(color = "none")+
   ggtitle("A. Prevalence Correlation")
-  
+
 p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
                    mutate(model=recode(model,
                                        "4_no_pos" = "4 s",
                                        "16_no_pos" = "16 s",
                                        "30_no_pos" = "30 s")),
                  aes(x=model, y=(detection_prevalence-prevalence)*100, color=model))+
-  # geom_violin(trim = FALSE, alpha = 0.4) +
-  # geom_quasirandom(aes(color = model),
-  #                  dodge.width = 0.7, varwidth = TRUE, alpha = 0.6, size = 2) +
   geom_boxplot(width = 0.1, outlier.shape = NA, fill = "white") + 
   geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
   scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
@@ -607,12 +624,13 @@ p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
     limits = c(-20,20),
     breaks = c(-20, -10, 0, 10, 20)
   )+
-  labs(x="Window Length", y="Prediction Error (%)")+
-  guides(color = "none")+
+  labs(x="Window Length", y="Prediction Error (%)", color="Window Length")+
   theme_update()+
+  theme(legend.position = c(0.5,0.9),legend.direction = "horizontal")+
   ggtitle("B. Prevalence Offset")
 
 (p_prev_cor+p_prev_gap)
+
 ```
 
 ```{r}
@@ -703,10 +721,10 @@ stats_fullday <- ds_sum_excl %>%
 ```
 
 ```{r fig-agechange}
-#| fig-cap: Infants' full day restrained time proportion with age
-#| fig-width: 4
-#| fig-height: 3
-#| apa-note: Each point denotes one session. The line denotes the group mean of restrained time (%)
+#| fig-cap: Younger versus older infants’ full day restrained time (as a proportion of recording time) 
+#| fig-width: 5
+#| fig-height: 4
+#| apa-note: Each point denotes one session. The horizontal red line denotes the group mean of restrained time proportion.
 
 t_age <- summary(lm(restrained_prop ~ age_group, data = ds_sum_excl))$coefficients # t test
 
@@ -714,7 +732,7 @@ p_age <- ggplot(ds_sum_excl, aes(x=age_group, y=restrained_prop)) +
   geom_jitter(width=.2, shape = 1,size = 3, color="black") + 
   stat_summary(fun = mean, geom = "crossbar",
                width = 0.4, color = "red") +
-  scale_y_continuous(name = "Restrained time (%)", breaks = seq(0, 1, .25), limits = c(0,1))+
+  scale_y_continuous(name = "Restrained time proportion of awake time", breaks = seq(0, 1, .25), limits = c(0,1))+
   theme_update()+
   labs(x="Age Group")
 
