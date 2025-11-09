@@ -4,8 +4,9 @@ using CSV, DataFrames, DataFrameMacros, Chain, Statistics, RData
 
 ############# BEFORE RUNNING DIFFERENT BATCHES, MODIFY:
 # Load compiled data from R
+# objs = RData.load("data_compiled/compiled_data_restrained_4s.RData") 
 objs = RData.load("data_compiled/compiled_data_restrained_16s.RData") 
-# objs = RData.load("data_compiled/compiled_data_restrained.RData") 
+# objs = RData.load("data_compiled/compiled_data_restrained.RData") #30s compiled data
 ds = objs["slide_filt"]
 
 # Decide which folder to store individual predictions
@@ -26,13 +27,13 @@ window = 16
 # save_file = "metrics_restrained_30_no_pos.csv"
 # save_file = "metrics_restrained_4_pos.csv"
 # save_file = "metrics_restrained_4_no_pos.csv"
-save_file = "metrics_restrained_16_no_pos.csv"
+# save_file = "metrics_restrained_16_no_pos.csv"
 ####################################################
 
 # Set seed for random forest
 Random.seed!(2025)
 
-# Delete pilot study, subject 104
+# Exclude pilot study, subject 104
 ds = filter!(row -> row.id != "104/1", ds) 
 
 # Pull the ids to set up the LOOCV analysis
@@ -85,6 +86,7 @@ Threads.@threads for i in eachindex(ids)
     # N_trees has a big influence on runtime; 150 is a reasonable estimate, but models tend to work better with 500
     model = RandomForestClassifier(n_trees=150)
     DecisionTree.fit!(model,X,y)
+    impurity_importance(model)
 
     # Predict testing data codes from resulting model
     code_predicted = MLJBase.coerce(DecisionTree.predict(model, Matrix(testing[:,Not(["code", "id"])])), Multiclass) 
@@ -97,18 +99,18 @@ Threads.@threads for i in eachindex(ids)
     # Calculate accuracy and store in the dataframe
     # accuracy = MLJBase.accuracy(code_predicted, code_actual) -- This code does not work: UndefVarError: `accuracy` not defined in `MLJBase`
     # accuracy = sum(code_predicted .== code_actual) / length(code_actual)
-    accuracy = StatisticalMeasures.accuracy(code_predicted, code_actual)
-    sensitivity = StatisticalMeasures.sensitivity(code_predicted, code_actual)
-    specificity = StatisticalMeasures.specificity(code_predicted, code_actual)
-    positive_predict = StatisticalMeasures.positive_predictive_value(code_predicted, code_actual)
+    # accuracy = StatisticalMeasures.accuracy(code_predicted, code_actual)
+    # sensitivity = StatisticalMeasures.sensitivity(code_predicted, code_actual)
+    # specificity = StatisticalMeasures.specificity(code_predicted, code_actual)
+    # positive_predict = StatisticalMeasures.positive_predictive_value(code_predicted, code_actual)
 
-    metrics[i, :overall_acc] = accuracy
-    metrics[i, :overall_sens] = sensitivity
-    metrics[i, :overall_spec] = specificity
-    metrics[i, :overall_posi_pred] = positive_predict
+    # metrics[i, :overall_acc] = accuracy
+    # metrics[i, :overall_sens] = sensitivity
+    # metrics[i, :overall_spec] = specificity
+    # metrics[i, :overall_posi_pred] = positive_predict
 
     println("id: $id; accuracy: $accuracy")
 end
 
 # Save to file
-CSV.write(save_file, metrics)
+# CSV.write(save_file, metrics)
