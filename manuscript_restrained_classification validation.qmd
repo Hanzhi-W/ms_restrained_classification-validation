@@ -31,15 +31,15 @@ author:
       - id: id1
         name: University of California, Riverside
         department: Department of Psychology
-
       
 author-note:
   blank-lines-above-author-note: 1
   # Disclosures condensed to one paragraph, but you can start a field with two line breaks to break them up: \n\nNew Paragraph
   disclosures:
+    # Acknowledge and cite data/materials to be shared.
+    # Example. Because the authors are equal contributors, order of authorship was determined by a fair coin toss.
     # Example: This study was registered at ClinicalTrials.gov (Identifier NTC998877).
     study-registration: null
-    # Acknowledge and cite data/materials to be shared.
     data-sharing: null
     # Example: This article is based on data published in Pulaski (2017).
     # Example: This article is based on the dissertation completed by Graham (2018).    
@@ -49,7 +49,6 @@ author-note:
     financial-support: null
     # Example: The authors are grateful for the technical assistance of Dr. X during the initial design and setup of our lab equipment.
     gratitude: null
-    # Example. Because the authors are equal contributors, order of authorship was determined by a fair coin toss.
     authorship-agreements: null
 abstract: "Physical restraint—including being held, carried, and restrained in devices—is a common feature of infants’ everyday lives. This study developed and validated a machine learning model to detect infants’ restraint using wearable sensors movement data derived from an existing data set (Franchak, 2023). The model achieved high accuracy (89%) and substantial kappa agreement (0.73) compared with human-coded ground truth. The model presented a slight bias towards overestimating unrestrained periods compared to restrained periods, but the bias was mitigated when using a longer data-aggregating window length. The model also showed convergent validity by corroborating prior studies that showed an age-related decrease in infant restraint time. In short, the current study demonstrated the feasibility of using wearable sensors to quantify infants’ real-world restraint experiences, offering a new tool for studying how daily restraint influences early development."
 keywords: [infant, restraint, everyday experiences, wearable sensors, machine learning]
@@ -62,43 +61,43 @@ format:
   apaquarto-pdf: 
     # can be jou (journal), man (manuscript), stu (student), or doc (document)
     # for now, tables and figures do not render properly in jou mode. 
-    documentmode: man
     # can be 10pt, 11pt, or 12pt
-    fontsize: 12pt
     # Integrate tables and figures in text
-    floatsintext: false
     # a4 paper if true, letter size if false
-    a4paper: false
     # suppresses loading of the lmodern font package
-    nolmodern: false
     # Suppresses loading of the fontenc package
-    nofontenc: false
     # Suppress the title above the introduction
-    donotrepeattitle: false
     # In jou mode, use times or pslatex instead of txfonts
-    notxfonts: false
     # In jou mode, use Computer Modern font instead of times
-    notimes: false
     # In jou mode, cancels automatic stretching of tables to column width 
-    notab: false
     # Uses Helvetica font in stu and man mode
-    helv: false
     # In man and stu mode, neutralizes the \helvetica command
-    nosf: false
     # In man and stu mode, uses typewriter font
-    tt: false
     # Puts draft watermark on first page
-    draftfirst: false
     # Puts draft watermark on all pages
-    draftall: false
     # Masks references that are marked as the author's own
+    # Hides correspondence text
+    documentmode: man
+    fontsize: 12pt
+    floatsintext: false
+    a4paper: false
+    nolmodern: false
+    nofontenc: false
+    donotrepeattitle: false
+    notxfonts: false
+    notimes: false
+    notab: false
+    helv: false
+    nosf: false
+    tt: false
+    draftfirst: false
+    draftall: false
     mask: false
     journal: null
     volume: null
     course: null
     professor: null
     duedate: null
-    # Hides correspondence text
     nocorrespondence: false
 editor_options: 
   chunk_output_type: console
@@ -452,7 +451,7 @@ table_btw_ctg <- crossing(model = model_labels, metric = c("sensitivity","pos_pr
 ```
 
 ```{r fig-cibtwctg}
-#| fig-cap: Differences in sensitivity and PPV between restrained and unrestrained prediction according to window lengths
+#| fig-cap: Differences in sensitivity and PPV between restrained and unrestrained prediction according to window length
 #| fig-width: 8
 #| fig-height: 5
 #| apa-note: Each vertical line indicates the 95%CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference (restrained - unrestrained).
@@ -693,7 +692,7 @@ ggplot(data=outliers, aes(x=session, y=id, color=model))+
 
 Despite the overall good accuracy, models using all three window lengths were biased towards predicted that infants were unrestrained rather than restrained. @fig-cibtwctg shows the difference of a metric’s value (e.g., sensitivity, PPV) between restrained class and unrestrained class within a single window length. Larger difference scores (away from 0) indicate larger asymmetry in predicting one category rather than the other. @fig-cibtwctg A shows that the sensitivity difference for 4 s window was `r apa_num(table_btw_ctg[1,3])`, 95% bootstrapped CI \[`r apa_num(table_btw_ctg[1,4])`, `r apa_num(table_btw_ctg[1,5])`\], for 16 s window was `r apa_num(table_btw_ctg[3,3])`, 95% CI \[`r apa_num(table_btw_ctg[3,4])`, `r apa_num(table_btw_ctg[3,5])`\], and for 30 s window was `r apa_num(table_btw_ctg[5,3])`, 95% CI \[`r apa_num(table_btw_ctg[5,4])`, `r apa_num(table_btw_ctg[5,5])`\]. The negative differences of sensitivity across all window lengths indicate that the model was more sensitive in detecting the unrestrained class compared to restrained class regardless of window lengths. @fig-cibtwctg B shows that the PPV difference for 4 s window was `r apa_num(table_btw_ctg[2,3])`, 95% CI \[`r apa_num(table_btw_ctg[2,4])`, `r apa_num(table_btw_ctg[2,5])`\], for 16 s window was `r apa_num(table_btw_ctg[4,3])`, 95% CI \[`r apa_num(table_btw_ctg[4,4])`, `r apa_num(table_btw_ctg[4,5])`\], and for 30 s window was `r apa_num(table_btw_ctg[6,3])`, 95% CI \[`r apa_num(table_btw_ctg[6,4])`, `r apa_num(table_btw_ctg[6,5])`\]. The positive differences of PPV across all window lengths indicate that the model’s prediction of restrained periods was more credible compared to its prediction of unrestrained periods. Notably, while none of the window lengths were free from bias, the 30 s window presented smaller offsets of metric values between restrained and unrestrained detection.
 
-The prediction bias was also evident when examining the model’s overall estimate of restrained time and its difference from human annotation. @fig-prevalencegap B shows that the model predictions consistently underestimated overall restrained time compared to human annotation, despite the high correlation between the two. We defined prediction error as the model predicted prevalence (in % units) subtracted by the human annotated prevalence of restrained periods (in % units). The 4 s window had a prediction error of `r apa_num(table_prev[1,5]*100)`%, 95% CI \[`r apa_num(table_prev[1,6]*100)`%, `r apa_num(table_prev[1,7]*100)`%\], the 16 s window of `r apa_num(table_prev[2,5])*100`%, 95% CI \[`r apa_num(table_prev[2,6]*100)`%, `r apa_num(table_prev[2,7]*100)`%\], and the 30 s window of `r apa_num(table_prev[3,5]*100)`%, 95% CI \[`r apa_num(table_prev[3,6]*100)`%, `r apa_num(table_prev[3,7]*100)`%\].
+The prediction bias was also evident when examining the model’s overall estimate of restrained time and its difference from human annotation. @fig-prevalencegap B shows that the model predictions consistently underestimated overall restrained time compared to human annotation, despite the high correlation between the two. We defined prediction error as the model predicted prevalence (in % units) subtracted by the human annotated prevalence of restrained periods (in % units). The 4 s window had a prediction error of `r apa_num(table_prev[1,5]*100)`%, 95% CI \[`r apa_num(table_prev[1,6]*100)`%, `r apa_num(table_prev[1,7]*100)`%\], the 16 s window of `r apa_num(table_prev[2,5]*100)`%, 95% CI \[`r apa_num(table_prev[2,6]*100)`%, `r apa_num(table_prev[2,7]*100)`%\], and the 30 s window of `r apa_num(table_prev[3,5]*100)`%, 95% CI \[`r apa_num(table_prev[3,6]*100)`%, `r apa_num(table_prev[3,7]*100)`%\].
 
 Across the metrics of sensitivity, PPV, and prediction error, 30 s turned out to be the best window length out of the three, which brought about a balanced performance across classes.
 
