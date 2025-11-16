@@ -18,7 +18,7 @@ Part 2: Calculate model performance
 
 Part 4: Analysis and manuscript
 
-  We decided on using 30s as the final window length (see manuscript). We used the validated modeling precess to predict full-day restraint. "whole-model-prediction.RData" is the whole dataset with model prediction. 
+  We decided on using 30s as the final window length (see manuscript). We used the validated modeling process to predict full-day restraint. "whole-model-prediction.RData" is the whole dataset with model prediction. 
 
-  All the analysese and manuscript are in "manuscript_restrained_classification validation.qmd"
+  All the analyses and manuscript are in "manuscript_restrained_classification validation.qmd"
   
