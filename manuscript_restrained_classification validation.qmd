@@ -794,10 +794,10 @@ Additional written consent was obtained from caregivers to allow the sharing of 
 
 ## Availability of Data and Materials
 
-Human annotation results, which were used for model training and validation are publicly shared on OSF (https://osf.io/a698g/overview?view_only=221d1f2bc8d34b5d9838354224d6da8f).
+Sensor data and video recordings are publicly shared on Databrary (Franchak, 2023). Compiled human annotation results are shared on OSF (https://osf.io/a698g/overview?view_only=221d1f2bc8d34b5d9838354224d6da8f).
 
 ## Code Availability
 
-All the processing scripts are also publicly shared on OSF.
+All processing scripts, including model training and validation analyses, are publicly shared on OSF as well (https://osf.io/a698g/overview?view_only=221d1f2bc8d34b5d9838354224d6da8f).
 
 # References
