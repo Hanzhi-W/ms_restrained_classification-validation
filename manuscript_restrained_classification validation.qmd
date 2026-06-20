@@ -50,7 +50,7 @@ author-note:
     # Example: The authors are grateful for the technical assistance of Dr. X during the initial design and setup of our lab equipment.
     gratitude: null
     authorship-agreements: null
-abstract: "Physical restraint—including being held, carried, and restrained in devices—is a common feature of infants’ everyday lives. However, previous survey-based and video-based methods cannot simultaneously provide continuous, full-day accounts of infant restraint experiences. This study developed and validated a machine learning model to quantify infants’ restraint time moment-to-moment across the full day in the home environment using wearable sensor data. We used a data set that includes 142 home-visit sessions from 65 infants, with 29 younger infants aged 4-7 months, and 36 older infants aged 11-14 months. We annotated infants’ restrained states in the first 1.5-hour video recordings of each session as ground truth labels. The supervised machine-learning model achieved high accuracy (89%) and substantial kappa agreement (κ = .73) compared with human-coded ground truth. The model presented a slight bias towards overestimating unrestrained periods compared to restrained periods, but the bias was mitigated when we used a longer data-aggregating window length. The model also showed convergent validity by corroborating prior studies that showed an age-related decrease in infants' overall restraint time throughout the day. In short, the current study demonstrated the feasibility of using wearable sensors to quantify infants’ real-world restraint experiences, offering a new tool for studying how daily restraint influences early development."
+abstract: "Physical restraint—including being held, carried, and restrained in devices—is a common feature of infants’ everyday lives. However, previous survey-based and video-based methods cannot simultaneously provide continuous, full-day accounts of infant restrained experiences. This study developed and validated a machine learning model to quantify infants’ restrained time moment-to-moment across the full day in the home environment using wearable sensor data. We used a dataset that includes 146 home-visit sessions from 66 infants, with 30 younger infants aged 4-7 months, and 36 older infants aged 11-14 months. We annotated infants’ restrained states in the first 1.5-hour video recordings of each session as ground truth labels. The supervised machine-learning model achieved high accuracy (89%) and substantial kappa agreement (κ = .73) compared with human-coded ground truth. The model presented a slight bias towards overestimating unrestrained periods compared to restrained periods, but the bias was mitigated when we used a longer data-aggregating window length. The model also showed convergent validity by corroborating prior studies that showed an age-related decrease in infants' overall restrained time throughout the day. In short, the current study demonstrated the utility of using wearable sensors to quantify infants’ real-world restrained experiences, offering a new tool for studying how daily restraint influences early development."
 keywords: [infant, restraint, everyday experiences, wearable sensors, machine learning]
 bibliography: [references.bib, packages.bib]
 format:
@@ -151,30 +151,85 @@ per_class_indx <- c("sensitivity","pos_pred_value","f1")
 ```
 
 ```{r}
-# demographics
+# load data
 load("whole-model-prediction.RData")
+rm(ds_sum)
 
-ds_sum <- ds_sum %>% 
-  filter(unique_id != "185/3")
 ds_human <- ds_human %>% 
-  filter(unique_id != "185/3")
+  filter(unique_id != "185/3") %>% 
+  na.omit()
 id_info <- id_info %>% 
   filter(unique_id != "185/3")
 id_demo <- id_demo %>% 
   filter(unique_id != "185/3")
 
-age <- id_demo %>% 
-  group_by(age_group) %>% 
+# 161/3 is a walker
+ds$walker[ds$unique_id=="161/3"]="Walker"
+id_info$walker[id_info$unique_id=="161/3"]="Walker"
+# recode motor status to be non-sitter/sitter in younger group, and non-walker/walker in older group
+ds <- ds %>% 
+  mutate(loc=ifelse(age_group=="Younger"&sitter=="Non-Sitter","Non-Sitter",
+                      ifelse(age_group=="Younger"&sitter=="Sitter", "Sitter",
+                             ifelse(age_group=="Older" & walker=="Non-Walker","Non-Walker",
+                                    ifelse(age_group == "Older"& walker=="Walker","Walker", NA) ))),
+         loc = factor(loc, levels=c("Non-Sitter", "Sitter", "Non-Walker","Walker"))) 
+
+id_info <- id_info %>% 
+  mutate(loc=ifelse(age_group=="Younger"&sitter=="Non-Sitter","Non-Sitter",
+                      ifelse(age_group=="Younger"&sitter=="Sitter", "Sitter",
+                             ifelse(age_group=="Older" & walker=="Non-Walker","Non-Walker",
+                                    ifelse(age_group == "Older"& walker=="Walker","Walker", NA) ))),
+         loc = factor(loc, levels=c("Non-Sitter", "Sitter", "Non-Walker","Walker"))) 
+
+# Set nap time and excluded time periods as 'e' 
+ds <- ds %>% 
+    mutate(unrestrained = ifelse(nap_period==1 | exclude_period==1, "e", as.character(unrestrained))) %>% 
+  select(-pos) %>% 
+  mutate(unrestrained = recode(unrestrained,
+                               "Restrained" = "r", "Unrestrained" = "u"))
+
+ds_part1 <- ds %>% 
+  filter(unique_id != "138/1",
+         unique_id != "138/2",
+         unique_id != "187/2",
+         unique_id != "188/2") # these sessions have no ground truth
+
+ds_part2 <- ds %>% 
+  filter(unique_id != "148/1", #the caregiver probably took off the leggings later (based on LENA data) but didn’t report
+         unique_id != "178/3") #leggings not on the baby the whole time
+# %>% 
+#   filter(unique_id != "185/3") #they mixed the baby with another baby once
+
+ds_sum <- ds %>% group_by(unique_id, agemo, walker, crawler,sitter, age_group,loc,age_mo) %>%
+  filter(exclude_period == 0, nap_period == 0) %>%
+  summarize(unrestrained_n = sum(as.numeric(unrestrained == "u")),
+            awake_n = n()) %>%
+  mutate(unrestrained_prop = unrestrained_n/awake_n) %>% 
+  mutate(restrained_prop = 1-unrestrained_prop) %>% 
+  ungroup() %>%  
+  mutate(awake_time = awake_n*15/60/60) %>% 
+  separate(unique_id, into = c("subj", "sess"), sep = "/", remove = FALSE, convert = TRUE)
+
+
+ds_human <- ds_human %>%
+  filter(unique_id != "185/3")
+id_info <- id_info %>%
+  filter(unique_id != "185/3")
+id_demo <- id_demo %>%
+  filter(unique_id != "185/3")
+
+age <- id_demo %>%
+  group_by(age_group) %>%
   summarize(n=n(),
             .groups="drop")
 
-sex<-id_demo %>% 
-  group_by(infant_sex) %>% 
+sex<-id_demo %>%
+  group_by(infant_sex) %>%
   summarize(n=n(),
             .groups="drop")
 
-race<-id_demo %>% 
-  group_by(infant_race) %>% 
+race<-id_demo %>%
+  group_by(infant_race) %>%
   summarize(n=n(),
             .groups="drop")
 
@@ -193,75 +248,77 @@ stats_human <- ds_human %>%
             max_kappa = max(kappa))
 ```
 
-Physical restraint is a common feature in infants’ everyday lives. Infants are routinely held or carried by caregivers, and infants are often restrained in devices such as highchairs, walkers, and strollers [@Birken2015s]. As an externally regulated aspect of infants’ daily life, restraint shapes infants’ experiences based on caregivers’ decisions--caregivers, not infants, choose when infants are restrained. Restraint limits infants’ physical activities and might hinder infants’ motor development [e.g., @Pin2007z]. Restraint also alters experiences that are relevant for perceptual and cognitive development by determining what is accessible in the physical world. For example, restraint is associated with fewer object holding experiences [@Franchak2024l], reduced amounts of language input [@Malachowski2023a], and increased opportunities for joint attention [@Karasik2025h]. Therefore, characterizing infants’ restrained experiences helps profile infants’ daily learning contexts and situate their motor, perceptual, and cognitive development within everyday experiences.
+In day-to-day life, infants are often held or carried by caregivers (i.e., caregiver restraint), or routinely placed in devices such as highchairs, walkers, or strollers (i.e., device restraint) to ensure safety, facilitate transport, and provide comfort [@Birken2015s]. Defined as the restriction of an infant's ability to move or change their posture freely, restraint occurs across a wide range of durations, from brief episodes where a caregiver picks up an infant to reposition them to prolonged periods, such as 30 minutes in a highchair during mealtime. Ingrained in everyday caregiving routines, restraint fundamentally shapes infants’ experiences by limiting their physical location and altering what they can do, see, hear, or interact with. For example, restraint directly shapes infants’ motor experiences by limiting their muscle movement [e.g., @Jiang2016z]. Restraint also serves as a learning context that provides different opportunities for object interaction [@Franchak2024l], face looking [@Kretch2025l] and speech input [@Malachowski2023a; @Rousey2026f]. Therefore, characterizing infants’ restrained experiences helps profile infants’ daily learning contexts and situate their motor, perceptual, and cognitive development within everyday experiences.
 
-Previous studies have used a variety of methods to document infants’ restrained time in the home. Some used parent surveys, including questionnaires, diaries, or ecological momentary assessment [e.g., @Abbott2001u; @Karasik2018t; @Franchak2019o]. Some used video recording and human annotation [e.g., @Springfield2025p; @Wang2025v]. Although surveys provide an overall profile of infants’ daily life and video recordings provide continuous time series data, neither method can simultaneously provide full-day and continuous data to account for infants’ restraint experiences. In the current study, we propose that wearable sensors can be a solution for recording full-day, continuous movement behavior, and machine learning algorithms can be an accurate and efficient way to automatically classify wearable sensor data.
+Previous studies have used a variety of methods to document infants’ restrained time in the home. Some used parent surveys, including questionnaires, diaries, or ecological momentary assessment [e.g., @Abbott2001l; @Karasik2018t; @Franchak2019o]. Some used video recording and human annotation [e.g., @Springfield2025p; @Wang2025v]. Although surveys provide daily overviews and video recordings provide continuous time series data, neither method can simultaneously provide full-day, continuous data to account for infants’ restrained experiences. In the current study, we propose that combining wearable sensors and machine learning algorithms can be a solution to record and process long-form, real-time data to characterize infants’ restrained experiences.
 
 ## Previous Measurements of Restraint
 
-Despite different approaches, prior work converges to show that restraint is common in infant daily life, and that the time infants spend restrained changes over development. In terms of caregiver restraint, 2- to 6-month-old infants spent around 40% of their awake time being held or carried [@Malachowski2023a; @Siddicky2020f]. Older 10- to 13-month-olds spent around 19% of their awake time being held or carried [@Franchak2024l]. In terms of device restraint, 4- to 6-month-olds spent around 20% of their awake time in seating devices, and 35% in placement with physical support [@Callahan1997s; @Malachowski2023a]. Older 10- to 13-month-olds spent around 27% of awake time in restraining furniture or devices [@Franchak2024l]. Additionally, a study that compared across ages also confirmed that infants’ overall restrained time decreased from 2 to 6 months of age [@Carson2022n].
+Despite different approaches, prior work converges to show that restraint is common in infant daily life, and that the time infants spend restrained changes over development. In terms of caregiver restraint, 2- to 6-month-old infants spent around 40% of their awake time being held or carried [@Malachowski2023a; @Siddicky2020f]. This percentage reduced to around 19% for older 10- to 13-month-olds [@Franchak2024l]. In terms of device restraint, younger 4- to 6-month-olds spent around 23% of awake time in seating devices [@Malachowski2023a]. Meanwhile, the total amount of device restraint time ranged widely from 0 to 16 hours per day for infants younger than 5 months [@Callahan1997s], but decreased with age from 2 to 6 months [@Carson2022n]. Older 10- to 13-month-olds spent around 27% of awake time in restraining furniture and devices [@Franchak2024l].
 
-Many other studies have documented some portion of infant restraint time, but they differed in restraint definitions, making it difficult to compare results across studies. Some definitions only focused on caregiver restraint such as holding and carrying [e.g., @Airaksinen2024z; @Franchak2021k; @Franchak2024e; @Yao2019q], some only focused on seating devices [e.g., @Callahan1997s], some looked at different surfaces (e.g., lap, cradle, and seat) infants are on [e.g., @Graciosa2024o], some focused broadly on containment equipment [e.g., @Bartlett2003w; @Carson2022n; @Hesketh2015i; @Karasik2022a], some combined holding and carrying with seating equipment [@Springfield2025p], and others covered a wider range of restraint like furniture placement, seating devices and holding [@Franchak2024l; @Malachowski2023a; @Siddicky2021c].
+Many other studies have documented some portion of infant restrained time, but they differed in restraint definitions, making it difficult to compare results across studies. Some definitions only focused on caregiver holding and carrying [e.g., @Airaksinen2024z; @Franchak2021k; @Franchak2024e; @Yao2019q], some only focused on seating devices [e.g., @Callahan1997s], some looked at different surfaces of placement (e.g., lap, cradle, and seat) [e.g., @Graciosa2024o], some focused broadly on containment equipment [e.g., @Bartlett2003w; @Carson2022n; @Hesketh2015i; @Karasik2022a], and others covered a wider range of restraint like furniture placement, seating devices and holding [@Franchak2024l; @Malachowski2023a; @Siddicky2021c; @Springfield2025p].
 
-In the current study, we take a broader scope and consider any practices that limit infants’ freedom of movement as restraint. We do not pre-define a list of restraint practices but focus on infants’ real-time opportunities for movement by classifying restraint whenever infants cannot change body position or locomote freely. Quantifying both caregiver restraint (i.e., holding and carrying) and device restraint, we can get a whole picture of the external constraints that infants experience in daily life.
+In the current study, we take a broader scope and consider any practices that limit infants’ freedom of movement as restraint. We do not pre-define a list of restraint practices but focus on infants’ real-time opportunities for movement. By including both caregiver and device restraint, we can understand how restraint as a whole constrains and facilitates infants’ real-time opportunities for action, perception, and interaction.
 
-## Restraint Shapes Infant Learning Opportunities
+## Restraint Can Constrain and Facilitate Experiences
 
-In addition to measuring the total duration of infants’ restrained time, prior research has also examined associations between restraint and developmental outcomes. Motor development appears to be the domain most directly associated with restraint. Various studies have shown that restraint is related to less proficiency in infant motor skills and temporary delay in milestone achievement [@Abbott2001u; @Bartlett2003w; @Carson2022n; @Karasik2023d; @Pin2007z]. Physiological studies tracking infants’ body movements (e.g., spine, legs, hips) in real time suggest that reduced movement opportunities may underlie these effects [@Jiang2016z; @Siddicky2020f; @Siddicky2021c]. Restraint may also influence other aspects of infant development by shaping infants’ learning opportunities in real time. Infants produce fewer object interactions when restrained compared to when they are unrestrained [@Franchak2024l]. Moreover, infants hear less frequent and less consistent adult language when restrained compared to unrestrained [@Malachowski2023a].
+As an external constraint, restraint can be detrimental. In the domain of motor development, various studies have shown that higher levels of both device and caregiver restraint experienced by infants as early as 8 months are correlated with decreased proficiency and temporary delays in the acquisition of motor skills (e.g., sitting, crawling, and walking) in both full-term and low-risk preterm infants [@Abbott2001l; @Bartlett2003w; @Carson2022n; @Karasik2023d; @Pin2007z]. Kinesiology measurements suggest that reduced body movement might be the underlying mechanism. For example, being tucked in a car seat significantly reduces infants’ spinal muscle activity [@Siddicky2021c], hip position and muscle activity [@Siddicky2020f], and leg movement quantity [@Jiang2016z] compared to being unrestrained. The temporary delay in motor development can have cascading effects on infants’ object learning [@Soska2010t], spatial cognition [@Clearfield2004d; @Frick2013f], and language development [e.g., @Oudgenoeg-Paz2015j; @Walle2014l] as infants lack the learning experiences afforded by advanced motor skills. Even among infants following typical motor trajectories, reduced opportunities for free exploration also hinder language and cognitive development [@Babik2022s; @Oudgenoeg-Paz2015j]. Restraint is also linked to limitations in real-time experiences in other developmental domains. For example, infants have fewer opportunities of object interactions when restrained compared to unrestrained [@Franchak2024l]. Infants are also exposed to a reduced quantity and consistency of adult language when restrained in devices [@Malachowski2023a].
 
-Restraint is not always detrimental. Restraint can facilitate certain kinds of learning through stabilizing infants’ body posture or changing their placement in space. For example, restraint devices that support sitting can steady non-sitters’ bodies and facilitate spontaneous object exploration [@Soska2014u]. Moreover, some restraint devices (e.g., high chairs) or carriers put infants in sitting or upright positions high off the ground, in which infants have richer visual input of faces, distant toys, and elevated portions of their environment compared to when prone on the ground [@Kretch2015p; @Kretch2014r; @Franchak2018r; @Luo2020u]. Together, these examples underscore that real-time observation of restraint is essential for understanding how restraint shapes infants’ multimodal learning opportunities from moment to moment.
+However, some aspects of restraint can be positive. For infants with limited motor control, restraint can facilitate learning by stabilizing their body posture. For example, pre-sitting infants often rely on their hands to maintain posture, which can limit opportunities for hand-eye-coordinated exploration. Placing infants in supported sitting positions, such as on a caregiver’s lap or in a highchair, can free their hands and support higher-quality object exploration compared to unsupported sitting [@Kretch2025l; @Woods2013c] or compared to non-sitting positions [@Soska2014u]. Having a free hand to point at objects also elicits more verbal responses from caregivers [@Wu2015p]. Moreover, restraint can increase certain learning inputs. Holding and carrying time is associated with more speech input [@Rousey2026f]. Some restraint devices (e.g., high chairs) and caregiver holding can place infants high off the ground, providing them with richer visual input of faces, distant toys, and elevated portions of their environment compared to when prone on the ground [@Franchak2018r; @Kretch2014r; @Luo2020u]. Therefore, restraint cannot be categorized as either harmful or beneficial. Rather, these examples underscore that real-time observation of restraint is essential for understanding how restraint shapes infants’ multimodal learning opportunities from moment to moment.
 
 ## Limitations of Previous Research Methods
 
-Researchers have used survey methods, including traditional retrospective report and ecological momentary assessment (EMA), to quantify infants’ restrained time, but survey methods have limitations. Retrospective parent report asks parents to estimate their infant’s average daily restrained time over the past few weeks or month [@Abbott2001u; @Bartlett2003w; @Callahan1997s; @Carson2022n; @Hesketh2015i; @Karasik2018t; @Siddicky2020f]. Despite the widespread use of retrospective reports, they lack precision by relying on parents’ memory—it is difficult to recall and sum every bout of restraint practices and then report an overall time estimation [@Bradburn1987g]. There are exceptions where caregivers were asked to complete structured daily diaries reflecting on the previous day’s restraint practices in short intervals (e.g., every five minutes) [@Karasik2018t; @Majnemer2005j]. However, this method might still be sensitive to memory loss and thus not as accurate in providing data. EMA survey techniques reduce caregivers’ memory burden by sending momentary phone-survey prompts to caregivers multiple times (e.g., 5, 10, or 12 times) randomly throughout a day [@Franchak2019o; @Franchak2024l; @Malachowski2023a]. Despite the benefits of gathering immediate observations rather than retrospective reports, EMA cannot provide continuous time-series data. Thus, a method is needed that provides time-sequence information without relying on parent report.
+Researchers have used survey methods, including traditional retrospective reports and ecological momentary assessment (EMA), to quantify infants’ restrained time, but survey methods have limitations. Retrospective parent report asks parents to estimate their infant’s average daily restrained time over the past few weeks or months [@Abbott2001l; @Bartlett2003w; @Callahan1997s; @Carson2022n; @Hesketh2015i; @Karasik2018t; @Siddicky2020f]. Despite its widespread use, retrospective reports lack precision by relying on parents’ memory—it is difficult to recall and sum every bout of restraint and then report an overall time estimation [@Bradburn1987g]. There are exceptions where caregivers were asked to complete structured daily diaries reflecting on the previous day’s restraint practices in short intervals (e.g., every five minutes) [@Karasik2018t; @Majnemer2005j]. However, this method might still be sensitive to memory loss and thus not as accurate in providing data. EMA survey techniques reduce caregivers’ memory burden by sending momentary phone-survey prompts to caregivers multiple times (e.g., 5, 10, or 12 times) randomly throughout a day [@Franchak2019o; @Franchak2024l; @Malachowski2023a]. Despite the benefits of gathering immediate observations, EMA cannot provide continuous time-series data. Thus, a method is needed that provides time-sequence information without relying on parent report.
 
-Video recording and human annotation overcome the above drawbacks of survey-based methods, but video is subject to other limitations. One disadvantage of video observation is being obtrusive. The presence of a researcher in the room may affect the caregiver’s and infant’s behaviors. Another limitation is that video recording and annotation are both labor-intensive and time-consuming, which limits its use in large-scale or long-duration studies. Indeed, prior work that videotaped and manually annotated infants’ restraint had short durations of recording (e.g., half an hour in @Springfield2025p, and one hour in @Wang2025v). Within the short duration of recording, researchers tend to record the period when infants are awake and active. In contrast, periods when the infants are restrained, like seated in front of the TV or seated in highchairs, would likely be skipped. Thus, video recording is subject to sampling bias and might not be representative of infants’ whole-day experiences.
+Video recording and human annotation overcome the above drawbacks of survey-based methods, but video is subject to other limitations. Video recording by handheld cameras can be obtrusive and potentially impact caregivers’ and infants’ behaviors. Cameras not carried by experimenters may lose sight of the infant due to restricted fields of view or obstructions from furniture and people in the room. Besides, the video annotation process can be labor-intensive and time-consuming, which limits its use in large-scale or long-duration studies. Indeed, prior work that videotaped and manually annotated infants’ restraint had short durations of recording (e.g., half an hour in @Springfield2025p, and one hour in @Wang2025v). Additionally, within the short duration of recording, researchers tend to record the period when infants are awake and active. In contrast, periods when the infants are restrained, like seated in front of the TV or seated in highchairs, would likely be skipped. Thus, video recording is subject to sampling bias and might not be representative of infants’ whole-day experiences.
 
 ## Promises and Challenges of Wearable Sensors
 
-A system that uses wearable sensors (i.e., inertial movement units) to record real-time movement data and machine learning models to classify movement categories can overcome the limitations listed above. First, by collecting infants’ movement data through sensors, the system can objectively capture infants’ motion without relying on a respondent or a video annotator’s interpretation. Second, the sensors can provide moment-to-moment observation that is continuous and rich in time-sequence information. Third, sensors embedded in baby garments are mobile and unobtrusive—an experimenter does not need to follow the infant with a camera to record movements. Fourth, the system can record and process full-day and multiple-day data due to the sensors’ sufficient battery life and automated classification of machine learning models.
+A system that uses wearable sensors (i.e., inertial movement units) to record real-time movement data and machine learning models to classify movement categories can overcome the limitations listed above. Wearable sensors capture behavior-agnostic raw movement data, including linear acceleration from accelerometers and angular velocity from gyroscopes. Researchers define target behaviors and provide ground-truth labels based on video footage. A supervised machine learning model is then trained to map the movement data onto predefined behavioral categories.
 
-The past decade has witnessed an uptick of using wearable sensors to record and classify movement categories to enjoy these advantages. The application of wearable sensors progressed from adults [@Arif2015u; @Preece2009n], to children [@Nam2013y; @Ren2016-px; @Stewart2018h], and then to infants [@Airaksinen2020j; @Airaksinen2024z; @Franchak2021k; @Franchak2024e; @Yao2019q]. For infants, there have been established models that classify infants’ body postures in general—including holding and carrying [@Airaksinen2020j; @Franchak2021k; @Franchak2024e], and models that specifically detect holding and carrying periods [@Airaksinen2024z; @Yao2019q]. Insights from prior studies suggest effective practices, such as using multiple sensors and using sensors that record both gyroscope and accelerometer data [@Airaksinen2025l; @Franchak2024e].
+This system addresses the aforementioned limitations of survey and video methods in the following ways. First, by collecting infants’ movement data through sensors, the system can objectively capture infants’ motion without relying on a respondent or a video annotator’s interpretation. Second, the sensors can provide moment-to-moment observation that is continuous and rich in time-sequence information. Third, sensors embedded in baby garments are mobile and unobtrusive—an experimenter does not need to follow the infant with a camera to record movements. Fourth, the system can record and process full-day and even multiple-day data due to the sensors’ sufficient battery life and automated classification of machine learning models.
 
-However, one of the challenges researchers continue to face is the reduced model performance in naturalistic home settings [@Airaksinen2024z; @Franchak2024e; @Yao2019q], compared with more controlled laboratory environments [@Airaksinen2020j; @Franchak2021k]. Indeed, infants may exhibit more complex and unexpected movements at home versus in lab, which requires the models to be able to generalize to scenarios that go beyond the models’ training data set. Moreover, since no prior work has used wearable sensors to detect infants’ overall restrained periods, the current study addresses a unique detection problem.
+The past decade has witnessed an uptick of using wearable sensors to record and classify movement categories to enjoy these advantages. The application of wearable sensors progressed from adults [@Arif2015u; @Preece2009n], to children [@Nam2013y; @Ren2016-px; @Stewart2018h], and then to infants [@Airaksinen2020j; @Airaksinen2024z; @Franchak2021k; @Franchak2024e; @Yao2019q]. For infants, there have been established models that classify infants’ body postures in general—categories include supine, prone, sitting, and being held [@Airaksinen2020j; @Franchak2021k; @Franchak2024e]. There are also models that detect only holding and carrying periods among all other periods [@Airaksinen2024z; @Yao2019q]. Despite these successful applications, there is not yet a standardized implementation for choosing how many sensors to use and where to place them on infants’ bodies. Some used one sensor on infants’ chest [@Yao2019q], some used four sensors on infants’ upper arms and legs [@Airaksinen2020j; @Airaksinen2024z], and others used four sensors on infants’ hips and ankles [@Franchak2021k; @Franchak2024e]. Studies also vary in the inclusion of sensor modalities: Some used only accelerometers [@Yao2019q], whereas others used both accelerometers and gyroscopes [@Airaksinen2020j; @Airaksinen2024z; @Franchak2021k; @Franchak2024e]. However, a more recent work [@Airaksinen2025l] suggests that increasing the number of sensors, as well as including multimodal inputs (both acceleration and angular velocity), significantly improves the model accuracy in predicting infants’ postures and movements at home.
 
-Detecting restrained periods might be more challenging than classifying body postures. First, infants may show similar body movements whether restrained or not, making restrained and unrestrained classes more difficult to differentiate. For example, infants might kick legs when they are lying without restraint and also when they are strapped in a highchair. Possible distinctions might be manifested in a reduced range of motion or repetitive motion due to constraints, which requires high-precision sensors and sensitive models to detect. Second, there are lots of possible restraint forms infants can present--a caregiver can hold an infant up straight or in arms while breastfeeding; seating restraint can happen in countless infant seats, which vary in affordances of moving [@Alghamdi2024d]. Accordingly, the wearable sensor system should be robust enough to generalize across heterogeneous restraint scenarios. Thus, the dual requirement of sensitivity and robustness is the key challenge for developing a reliable model to detect infant restraint in the home.
+Importantly, there is no established model for detecting infants’ general restrained periods (both device restrained and caregiver restrained) from wearable sensor data. Detecting restrained periods might be more challenging than classifying body postures. First, infants may show similar body movements whether restrained or not, making restrained and unrestrained classes more difficult to differentiate. For example, infants might kick legs when they are lying unrestrained and also when they are strapped in a highchair. Possible distinctions might be manifested in a reduced range of motion or repetitive motion due to constraints, which require high-precision sensors and sensitive models to detect. Second, there are lots of possible restraint forms infants can present—a caregiver can hold an infant up straight or lay the infant in arms while breastfeeding; seating restraint can happen in countless infant seats, which vary in affordances of moving [@Alghamdi2024d]. Furthermore, naturalistic home environment often impairs model performance [@Airaksinen2024z; @Franchak2024e] compared to controlled laboratory settings [@Airaksinen2020j; @Franchak2021k], likely because infants’ movements at home are more variable. Accordingly, the wearable sensor system should also be robust enough to generalize across heterogeneous restraint scenarios.
 
-Strategies to address this untested classification lie in the flexibility of modeling approaches. One strategy is adjusting the window length within which movement data are aggregated. With a fixed sampling rate, larger windows provide more information for the model to leverage to predict the current category. Prior studies have used window lengths ranging from 2.3 to 4 seconds for infant posture detection [@Airaksinen2020j; @Franchak2024e], and from 1.15 to 10 seconds for infant holding and carrying detection [@Airaksinen2024z]. Considering that transitions between restraint states are typically slower than transitions between postures, we set window lengths longer than 4 seconds. Theoretically, shorter windows have higher temporal resolution and are sensitive to abrupt changes, but fewer samples in a shorter window might mean the model lacks context to make an accurate classification. In contrast, longer windows can incorporate more data but may lack temporal sensitivity or may introduce irrelevant data from heterogeneous movement within an event. Determining the optimal window length is therefore a key step for the model to reliably detect infants’ restrained periods.
+One way to meet the dual requirement of sensitivity and robustness is to adjust the temporal scale of predictions. Wearable sensor studies usually use a windowing process [@Airaksinen2020j; @Airaksinen2024z; @Franchak2021k; @Franchak2024e; @Yao2019q], where they apply a sliding window of a certain length onto the raw movement data, and summarize motion features, such as mean, standard deviation, and correlation, within each window. The machine-learning model then uses the motion features to predict the behavioral category at the window center. Theoretically, shorter windows have higher temporal resolution and are sensitive to abrupt changes, but fewer samples in a shorter window might mean the model lacks context to make an accurate classification. In contrast, longer windows can incorporate more data and provide more robust prediction, but may lack temporal sensitivity or may introduce irrelevant data from heterogeneous movement within an event. Studies with different prediction purposes used different lengths of windows. For example, window lengths of 2.3–4 seconds were validated for classifying infants’ body positions [@Airaksinen2020j; @Franchak2021k; @Franchak2024e], and window lengths of 1.15–4 seconds were validated for detecting holding and carrying episodes [@Airaksinen2024z; @Yao2019q]. Given the lack of evidence on optimal window lengths for detecting general restrained episodes, the current study evaluates how the window lengths affect the model performance on restraint classification.
 
 ## Current Study
 
-We propose that wearable sensors offer a more objective, unobtrusive, information-rich, and efficient approach to capturing infants’ full-day restraint experiences in natural settings compared to prior methods. To test the approach, we used an existing data set with infants aged from 4 to 14 months (Franchak, 2023). The data set consists of 142 sessions of full-day wearable sensor recording and 1.5-hour video recording of infants’ movement in the home. We coded infants’ restrained status from the videos to provide ground truth labels. We then trained a supervised machine learning model based on the human annotated labels. We varied the window lengths as 4 s, 16 s, and 30 s to examine the impact of window length on model performance.
+We propose that wearable sensors offer a more objective, unobtrusive, information-rich, and efficient approach to capturing infants’ full-day restrained experiences in natural settings compared to prior methods. To test the approach, we used an existing dataset with infants aged from 4 to 14 months (Franchak, 2023).The dataset consists of 146 sessions of full-day wearable sensor recording and 1.5-hour video recording of infants’ movement in the home. We coded infants’ restrained status from the videos to provide ground truth labels. We then trained a supervised machine learning model based on the human-annotated labels.
 
-We validated the model in two ways. First, we compared how accurately model predictions matched human annotation for the 1.5 hours of each video-recorded session. We predicted that accuracy would be good, exceeding \~85% agreement based on prior studies reporting 78—98% accuracy [@Airaksinen2020j; @Airaksinen2024z; @Franchak2024e; @Yao2019q] in classifying infants’ movement at home. We also compared across window lengths according to overall accuracy and prediction bias to decide which window length was most optimal. Second, we applied the model to full-day data to estimate the proportion of time each infant was restrained. We examined the convergent validity of the model against past research by testing whether restrained time decreased with age [@Carson2022n].
+We validated the model in two ways. First, we compared how accurately model predictions matched human annotation for the 1.5 hours of each video-recorded session. We also examined how varying window length influences model performance. Second, we applied the model to full-day data to estimate the proportion of time each infant spent restrained. We examined the convergent validity of the model against past research by testing whether restrained time decreased with age [@Carson2022n; @Franchak2024l].
 
 # Method
 
 ## Dataset
 
-The data set is hosted on Databrary (Franchak, 2023). The data set consists of two cohorts of infants: `r apa_num(age[1,2])` younger infants aged 4 to 7 months, and `r apa_num(age[2,2])` older infants aged 11 to 14 months. Among the total of `r apa_num(age[1,2]+age[2,2])` infants, 26 of them participated in the study only once, while 39 of them participated from 2 to 4 times, resulting in a total of 142 sessions. Thirty-four of the infants are female and thirty-one are male. Caregivers reported the infants’ race as White (*n* = 23), Hispanic or Latinx (*n* = 8), African American (*n* = 2), Asian (*n* = 2), more than one (*n* = 15), or not fitting into the above races or chose not to answer (*n* = 15).
+The dataset is shared on a web-based repository (Franchak, 2023; https://databrary.org/volume/1637) hosted by Databrary. The dataset consists of two cohorts of infants: `r apa_num(age[1,2])` younger infants aged 4 to 7 months, and `r apa_num(age[2,2])` older infants aged 11 to 14 months. Among the `r apa_num(age[1,2]+age[2,2])` infants, 39% (*n* = 26) participated only once, while 61% (*n* = 40) participated 2–4 times, resulting in a total of 146 sessions. Thirty-five of the infants are female and thirty-one are male. Caregivers reported the infants’ race as White (*n* = 23), Hispanic or Latinx (*n* = 8), Asian (*n* = 3), African American (*n* = 2), more than one (*n* = 15), or not fitting into the above races or chose not to answer (*n* = 15). More detailed descriptions of the sample are in other publications derived from the dataset [@Franchak2026d; @Rousey2026f].
 
 ## Apparatus
 
-In the data set, a special infant garment was customized to secure four lightweight wearable sensors (MC10 Biostamp) at four specific locations (i.e., right thigh, left thigh, right ankle, and left ankle). Each sensor collects raw data as accelerometer signals (in x, y, and z orientations) and gyroscope signals (in roll, pitch, and yaw orientations). The sampling rate of 62.5 Hz allows for high-resolution motion recording, and the sufficient battery life and built-in storage allow for daylong recording. An action camera fixed on a mini tripod (GoPro HERO9 Black) was used to record synchronized third-person video of the first 1.5 hours into the session as ground truth.
+In the dataset, a special infant garment was customized to secure four lightweight wearable sensors (MC10 Biostamp) at four specific locations (i.e., right thigh, left thigh, right ankle, and left ankle). Each sensor collects raw data as accelerometer signals (in x, y, and z orientations) and gyroscope signals (in roll, pitch, and yaw orientations). The sampling rate of 62.5 Hz allows for high-resolution motion recording, and the battery life of more than one day and sufficient built-in storage allow for daylong recording. An action camera fixed on a mini tripod (GoPro HERO9 Black) was used to record synchronized third-person video of the first 1.5 hours into the session as ground truth.
 
 ## Procedure
 
-Data collection took place in the family’s home and began with synchronizing the video camera and wearable sensors. The caregiver was instructed to set up the camera to capture the main room and to move it as needed to ensure the infant remained in view. The caregiver put the garment on the infant and positioned the infant in various postures (including holding and sitting in a restraint device) for at least one minute each for model training purposes. Afterwards, the infant continued wearing the garment during their daily routines. The caregiver logged the times when the infant was napping or when the garment was removed (e.g., for diaper changes, baths, or errands).
+On the day of the home visit, an experimenter turned on the equipment by the doorstep of the participant’s house and synced the video camera and wearable sensors by dropping the sensors in front of the camera. This action left a distinct time stamp in both the video footage and the sensors’ data. The experimenter then left the house and instructed the caregiver over the phone to set up the camera in the main room and to move it as needed to ensure the infant remained in view. The caregiver was instructed to put the garment on the infant and complete a brief set of structured movement tasks for model-training purposes. Caregivers were asked to position the infant supine, prone, sitting, and upright; to hold the infant while walking; and to place the infant in a commonly used restraint device, such as a highchair. Each position lasted approximately 1–4 min, depending on the activity and the infant’s tolerance. After this, the caregiver was asked to play with the infant on the floor for 10 min before they continued their daily routines. The caregiver was also provided with a paper log form to manually record the exact clock time (both start and end times) when the infant was napping or when the garment was removed for reasons such as diaper changes, baths, or errands. These times were later excluded from estimates of daily restrained time. For convenience, we refer to the remaining, included recording time as infants’ “awake time.”
 
 ## Human Annotation of Restraint
 
-Using the 1.5-hour videos, our team annotated the periods when the infant was restrained or unrestrained using Datavyu software (https://datavyu.org/). Restrained and unrestrained were defined as a binary category, meaning that all times were coded as one of the two categories. A period was considered missing if the infant went out of view; missing periods were excluded from further analysis. Restraint was defined as when infants could not initiate or control their own movements, which included being held or carried by caregivers, or being restrained in devices that constrain them from changing body position. Unrestrained periods, in contrast, were when infants could freely change their body position or locomote. For example, an infant was considered restrained when strapped into a high chair seat, but not when they were placed in a crib and free to change position. Each video file was coded by two coders: a primary coder annotated the whole 1.5-hour video, and an independent reliability coder annotated the first 30 minutes of each video. Inter-rater reliability was calculated as the proportion of video frames where the two coders coded the same label. The human annotation reached a high agreement with an overall accuracy of `r apa_num(stats_human[1,1]*100)`%, ranging from `r apa_num(stats_human[1,2]*100)`% to `r apa_num(stats_human[1,3]*100)`%, and an average kappa of `r apa_num(stats_human[1,4])`, ranging from `r apa_num(stats_human[1,5])` to `r apa_num(stats_human[1,6])`.
+Using the 1.5-hour videos, our team annotated the periods when the infant was restrained or unrestrained using Datavyu software (https://datavyu.org/). Restrained and unrestrained were defined as a binary category, meaning that all times were coded as one of the two categories. A period was considered missing if the infant went out of view; missing periods were excluded from model training and evaluation. Restraint was defined as when infants could not initiate or control their own movements, which included being held or carried by caregivers, or being restrained in devices that constrain them from changing body position. Unrestrained periods, in contrast, were when infants could freely change their body position or locomote. For example, an infant was considered restrained when strapped into a highchair, but not when they were placed in a big crib and free to change position. Each video file was coded by two coders: a primary coder annotated the whole 1.5-hour video, and an independent reliability coder annotated the first 30 minutes of each video. Inter-rater reliability was calculated as the proportion of video frames where the two coders coded the same label. The human annotation reached a high agreement with an overall accuracy of `r apa_num(stats_human[1,1]*100)`%, ranging from `r apa_num(stats_human[1,2]*100)`% to `r apa_num(stats_human[1,3]*100)`%, and an average kappa of `r apa_num(stats_human[1,4])`, ranging from `r apa_num(stats_human[1,5])` to `r apa_num(stats_human[1,6])`.
 
 ## Model Classification of Restraint
 
-The supervised machine-learning classification process followed procedures similar to prior work [@Franchak2021k; @Franchak2024e; @Nam2013y]. First, we aligned the time series of human annotations and sensor data by matching the synchronization time stamp in the video and sensors. This resulted in a data set with human-coded labels and motion data from four sensors—each capturing acceleration (x, y, z) and angular velocity (roll, pitch, yaw)—available at each sampling point.
+The supervised machine-learning classification process followed procedures similar to prior work [@Franchak2021k; @Franchak2024e; @Nam2013y]. First, we aligned the time series of human annotations and sensor data by matching the synchronization time stamp in the video and sensors. This resulted in a dataset with human-coded labels and motion data from four sensors—each capturing acceleration (x, y, z) and angular velocity (roll, pitch, yaw)—available at every sampling point. We then aggregated raw motion data within the sliding window of *n* seconds into motion features, which included statistical features—mean, median, minimum, 25th percentile, 75th percentile, maximum, skewness, kurtosis, standard deviation, and sum—for all six signals across the four sensors, resulting in 240 features. We added 196 additional features based on cross-sensor and cross-orientation metrics such as correlations and pairwise differences, resulting in 436 features in total within each window. We varied the window length *n* from 4 s to 16 s and 30 s.
 
-We aggregated raw IMU data into motion features within sliding windows of *n* seconds, where the window length *n* varied from 4 s to 16 s and 30 s. Motion features are a set of statistics to describe a window of data that serve as predictors for the machine learning model. For each window, we computed statistical features—mean, median, minimum, 25th percentile, 75th percentile, maximum, skewness, kurtosis, standard deviation, and sum—for all six signals across the four sensors, resulting in 240 features. We then added 196 additional features based on cross-sensor and cross-orientation metrics such as correlations and pairwise differences, resulting in 436 features per window.
+We started the windowing process from the synchronization point and slid the window every *n*/2 seconds. Consequently, each time point spaced every *n*/2 seconds contains 436 motion features, aggregated from the *n*/2 seconds before and after that point. For model training and testing, we included only windows where the infant remained in a single status for over 90% of the time and labeled the window with that status. For the 4-s window length, 1.78% of windows were excluded, leaving 304542 windows. For the 16-s window length, 5.75% of windows were excluded, leaving 73002 windows. For the 30-s window length, 8.99% of windows were excluded, leaving 37563 windows.
 
-We started the windowing process from the synchronization point and slid the window every *n*/2 seconds. Consequently, each time point spaced every *n*/2 seconds contains 436 motion features, aggregated from the *n*/2 seconds before and after that point. For model training and testing, we included only windows where the infant remained in a single status for over 90% of the time and labeled the window with that status.
+The third step was to train and validate supervised machine learning models that classify the motion features into restrained status. We applied the random forest algorithm [@Breiman2001t] in modeling and used a leave-one-out cross-validation approach, where we held out one session at each iteration as a testing set and trained the model using the other sessions. To evaluate how well the model generalized to unseen data compared to the human annotation, we calculated performance metrics at each iteration, including accuracy, kappa, correlation between actual and predicted prevalence, sensitivity, positive predictive value (PPV), and binary F1. Accuracy shows the proportion of windows for which the model prediction agreed with the human annotation. Kappa adjusts the accuracy for chance-level agreement. Prevalence correlation examines whether the proportion of windows classified as restrained (i.e., prevalence of restraint) predicted by the model correlates with the one annotated by human. Sensitivity reflects the proportion of true restrained observations (marked by human) correctly detected by the model, whereas PPV reflects the proportion of predicted restrained observations that were truly restrained. Binary F1 summarizes the balance between sensitivity and PPV. For all metrics, higher values indicate better model performance. Based on prior work and the benchmark in the field [@Airaksinen2020j; @Airaksinen2024z; @Franchak2021k; @Franchak2024e; @Landis1997x; @Yao2019q], we interpreted an accuracy above 85% and a kappa value above 0.70 as high agreement. We categorized a prevalence correlation coefficient above 0.80 as excellent, and values above 0.80 for sensitivity, PPV, and F1 as satisfactory.
 
-The third step was to train and validate supervised machine learning models that classify the motion features into restrained statuses. We applied the random forest algorithm (Breiman, 2001) in modeling using the DecisionTree package (Sadeghi et al., 2022) in Julia. We used a leave-one-out cross-validation approach, where we held out one session at each iteration as a testing set and trained the model using the other sessions, to evaluate how well the model generalized to unseen data. After validation, an optimal window length was picked, and a final model was trained using all the human annotations to process whole-day sensor data of all sessions.
+Whereas accuracy, kappa, and prevalence correlation reflect overall model performance, sensitivity, PPV, and F1 are category-specific metrics. Especially for sensitivity and PPV, the differences in the values between the restrained and unrestrained categories can reveal potential prediction bias. If sensitivity is higher for the restrained than the unrestrained category, the model is better at detecting true restrained periods than unrestrained periods. If the PPV is higher for the restrained than the unrestrained category, the model-predicted restrained periods are more likely to be credible than the predicted unrestrained periods. If a model shows higher sensitivity and lower PPV for the restrained category, the model is biased toward predicting restraint by capturing the true restrained periods but also producing false alarms. We therefore compared sensitivity and PPV across categories as indicators of prediction bias.
+
+The leave-one-out cross-validation could inform us which window length brought the optimal result. The overall accuracy and kappa value were the primary criteria, with minimizing prediction bias serving as a secondary criterion in the case that different window lengths had similar overall metrics. After the window length was picked, we trained a final model using all the human annotations to process the whole-day sensor data of all sessions. We examined the model’s convergent validity by replicating a previously-reported effect that restraint time decreases with age [@Carson2022n; @Franchak2024l].
 
 ## Reproducibility and Data Sharing
 
@@ -269,9 +326,174 @@ Machine-learning process was conducted in Julia version 1.11.1 using the Decisio
 
 # Results
 
-We first compared model performance to the human annotations of the 1.5-hour video recorded period across all 142 sessions using the leave-one-out cross-validation approach. We calculated performance metrics, including accuracy, kappa, sensitivity, positive predictive value, F1, and the correlation of the overall estimate time of restraint between the model and human annotation. We also examined the prediction biases of the model and how they vary across window lengths. Second, we applied the model with the optimal window length to process infants’ full-day sensor data and examined the model’s convergent validity by replicating a previously-reported effect: that restraint time decreases with age [@Carson2022n].
+```{r fig-groundtruth}
+#| fig-cap: Human Annotated Restrained Proportion From the 1.5-hour Video Recording
+#| fig-width: 5
+#| fig-height: 5
+#| apa-note: Each circle denotes one session. The horizontal line denotes the mean of restrained time proportion among the 1.5 hours for each session.
+
+
+load("datavyu_restrained_nowindow.RData")
+ds_sess_human <- ds_sess_human %>% 
+  mutate(r_hum_ttl_prop = r_human/dur_total,
+         u_hum_ttl_prop = u_human/dur_total,)
+
+ds_sess_human <- left_join(ds_sess_human,
+                           id_info %>% 
+                             select(unique_id, agemo,age_group, age_mo, sitter, crawler, walker, loc), 
+                           by="unique_id") %>% 
+  drop_na()
+
+# psych::describe(ds_sess_human$r_hum_ttl_prop*100)
+# psych::describe(ds_sess_human$u_hum_ttl_prop*100)
+
+p_groundtruth <- ggplot(data=ds_sess_human,
+                        aes(x=age_group,y=r_hum_ttl_prop)) +
+  geom_jitter(width=.2, shape = 1,size = 3, color="black") + 
+  stat_summary(fun = mean, geom = "crossbar",
+               width = 0.4, color = "black") +
+  # geom_hline(yintercept = 0, color = "grey")+
+  xlab("Age Group") + 
+  scale_y_continuous(name = "Human Annotated Restr. Time Proportion",breaks = seq(0, 1, .25), limits = c(0,1)) +
+  theme_update()
+
+p_groundtruth
+```
+
+The first part of the validation was based on the first 1.5 hours of each of the 144 sessions for which human annotations were available. Two sessions were excluded because no video was available to provide ground truth. As shown in Figure 1, infants were annotated as restrained for an average of 35.29% (*SD* = 21.16%) and unrestrained for an average of 47.52% (*SD* = 21.92%) time among the 1.5-hour recording period (the rest of the time was coded as missing), with substantial individual variability. We report the model performance using accuracy, kappa, sensitivity, PPV, binary F1, and prevalence of restraint as compared to human annotation. We also report the model’s prediction bias by comparing the sensitivity and PPV between the two categories.
+
+The second part of the validation was based on the full-day sensor recordings. We report whether the predictions made by the model with optimal window length converges with past results [@Carson2022n; @Franchak2024l] to show that older infants had less restrained time than younger infants.
 
 ## Model Prediction Compared to Human Annotation
+
+```{r fig-timeline}
+#| fig-cap: Exemplar Timeline of Model Prediction and Human Annotation
+#| fig-width: 6
+#| fig-height: 6
+#| apa-note: This session was chosen as an example because it represents the average model accuracy. Purple bars in each timeline represent model predictions/human annotation of “restrained” and yellow bars represent “unrestrained”.
+
+
+# 1.5-hour timeline of model prediction compared to human annotation
+id_value <- 174
+session_value <- 4
+
+get_file <- function(source, wd_length, id_value, session_value){
+  clean_sess_file <- function(ds,wd_length){
+    ds <- ds %>% 
+    mutate(start=seq(0, wd_length*(nrow(ds)-1),wd_length),
+           end=seq(wd_length, wd_length*(nrow(ds)),wd_length))
+    ref0 <- str_match(ds$pool[1],"\\[\\\"(.*?)\\\"")[,2]
+    ds <- ds %>% 
+      mutate(code = ifelse((ref0=="Unrestrained" & ref == 1 | ref0=="Restrained" & ref == 2), "u","r")) %>% 
+      mutate(code = factor(code, levels=c("u","r"))) %>% 
+      select(-pool,-ref) %>% 
+      mutate(run_id = cumsum(code != lag(code, default = first(code)))) %>% 
+      group_by(run_id, code)%>%
+    summarise(
+      start = min(start),
+      end = max(end),
+      duration = end - start,
+      .groups = "drop")
+    
+    return (ds)
+  }
+    if (source=="human"){
+      actual <- ds_datavyu %>% 
+                filter (id==id_value & session==session_value) %>% 
+                select(-id,-session,-unique_id)
+  
+      start_offset <- actual$start[1]
+      
+      actual <- actual %>% 
+        mutate(start = (start - start_offset)/1000,
+               end = (end - start_offset)/1000,
+               start = lag(end, default = first(start)),
+               duration = duration/1000)
+      
+      return(actual)
+
+  }else{
+    if (wd_length==2) {
+      dir<-"predict_4_no_pos"
+    }else if (wd_length==8){ 
+      dir<-"predict_16_no_pos"
+    }else {
+      dir<-"predict_30_no_pos"}
+  
+    path_predict <- paste0(dir,"/",as.character(id_value),"_",as.character(session_value),"_predict.csv")
+    predict <- read_csv (path_predict)
+    predict <- clean_sess_file(predict, wd_length)
+    return(predict)
+  }
+}
+predict4 <- get_file("machine", 2, id_value, session_value)
+predict16 <- get_file("machine", 8, id_value, session_value)
+predict30 <- get_file("machine", 15, id_value, session_value)
+groundtruth <- get_file("human",, id_value, session_value)
+
+endtime <- min(max(predict4$end),max(predict16$end),max(predict30$end),max(groundtruth$end))
+
+adjustendtime <- function (ds, endtime){
+  ds<- ds %>% 
+    mutate(withinend = start < endtime) %>% 
+    filter(withinend == 1) %>% 
+    mutate(end = ifelse(row_number() == n(), endtime, end))
+}
+
+predict4 <- adjustendtime(predict4, endtime)
+predict16 <- adjustendtime(predict16, endtime)
+predict30 <- adjustendtime(predict30, endtime)
+groundtruth <- adjustendtime(groundtruth, endtime)
+
+timeline_figure <- function(ds, source, wd_length){
+  y_title <- ifelse(source=="human", "Ground Truth (Human Annotation)",
+                    ifelse(wd_length==2, "Model Prediction (4-s Window)",
+                           ifelse(wd_length==8, "Model Prediction (16-s Window)",
+                                  ifelse(wd_length==15, "Model Prediction (30-s Window)", ""))))
+  p <- ggplot(ds) +
+    geom_rect(aes(xmin = start/60,xmax = end/60, ymin = 0, ymax = 0.5, fill = code),
+              color = NA) +
+    scale_fill_manual(values = c("r" = rgb(118/256, 118/256, 229/256), "u" = "yellow", "excl" = "white"))+
+    scale_color_manual(values = c("r" = rgb(118/256, 118/256, 229/256), "u" = "yellow", "excl" = "white"))+
+    scale_x_continuous(expand = c(0, 0)) +
+    labs(
+      x = if (source=="human") "Time (min)" else "",
+      y = str_wrap(y_title, width = 15),
+      fill = "Code"
+    ) +
+    theme(
+      axis.ticks.y = element_blank(),
+      axis.text.y = element_blank(),
+      legend.position = "none",
+      axis.title.y = element_text(
+        angle = 0,          # Makes the title horizontal
+        vjust = 0.5,        # Centers the text vertically relative to the axis
+        margin = margin(r = 15) # Adds space to the right so it doesn't overlap numbers
+      )+
+    theme_update()
+    )
+  return(p)
+}
+
+p_4s <- timeline_figure(predict4, "machine", 2)
+
+p_16s <- timeline_figure(predict16, "machine", 8)
+
+p_30s <- timeline_figure(predict30, "machine", 15)
+
+p_human_1.5 <- timeline_figure(groundtruth, "human", )
+
+
+p_all <- (
+  wrap_elements(p_4s) /
+  wrap_elements(p_16s) /
+  wrap_elements(p_30s)/
+  wrap_elements(p_human_1.5)
+) 
+
+p_all
+
+```
 
 ```{r}
 load("matrices.RData")
@@ -285,7 +507,7 @@ matrix_comb <- matrix_comb %>%
 ```
 
 ```{r tbl-indexbetweenmodels}
-#| tbl-cap: Performance metrics according to window length (4 s, 16 s, and 30 s)
+#| tbl-cap: Performance Metrics According to Window Length (4 s, 16 s, and 30 s)
 #| ft.align: left
 #| apa-note: F, df, and p value indicate one-way ANOVA on each metric comparing across the three window lengths.
 
@@ -452,11 +674,123 @@ table_btw_ctg <- crossing(model = model_labels, metric = c("sensitivity","pos_pr
 # table_flex_btw_ctg
 ```
 
+```{r}
+# Table. Model predicted and human annotated prevalence of restrained periods, their correlation, and differences
+df_prev <- matrix_comb %>%
+  filter(positive_class=="r") %>%
+  select(model, id, session, detection_prevalence, prevalence) %>% 
+  mutate(gap = detection_prevalence-prevalence)
+
+prev_gap <- map(model_labels, ~ bootstrap_gap(df = df_prev %>% filter(model == .x), metric = "gap", gap_cal = T))
+
+table_prev <- df_prev %>%
+  group_by(model) %>%
+  summarise(actual_prev = mean(prevalence),
+            prev = mean(detection_prevalence),
+            cor = cor (detection_prevalence, prevalence),
+            .groups = "drop") %>% 
+  mutate(gap = map(prev_gap, ~ tibble(
+    mean_gap = .x$mean_gap,
+    ci_low   = .x$ci[1],
+    ci_high  = .x$ci[2]))) %>%
+  unnest(gap) %>% 
+  mutate(model=recode(model,
+                      "4_no_pos" = "4 s",
+                       "16_no_pos" = "16 s",
+                       "30_no_pos" = "30 s"))
+
+# table_prev_100 <- table_prev %>% 
+#   mutate(actual_prev=actual_prev*100,
+#          prev = prev*100, 
+#          mean_gap = mean_gap *100,
+#          ci_low=ci_low * 100,
+#          ci_high=ci_high*100) %>% 
+#   mutate(ci = paste0("[",round(ci_low, 2),", ", round(ci_high, 2), "]" )) %>% 
+#   select(-ci_low, -ci_high, -actual_prev, -prev) %>% 
+#   rename("Window Length" = "model",
+#          "Correlation (r)" = "cor",
+#          "M" = "mean_gap",
+#          "95%CI" = "ci")
+# 
+# table_flex_prev <- table_prev_100 %>% 
+#   flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
+#   fix_border_issues() %>% 
+#   add_header_row(values = c("","Prediction Error (%)"), colwidths = c(2,2)) %>% 
+#   hline(i = c(1,2,3)) %>% 
+#   padding(padding.top = 2, padding.bottom = 2) %>% 
+#   set_table_properties(layout = "autofit", width = .99) %>% 
+#   align(align = "center", part = "all")
+# table_flex_prev
+```
+
+```{r fig-prevalencegap}
+#| fig-cap: Agreement Between Model-Predicted and Human Annotated Prevalence of Restraint
+#| fig-width: 5
+#| fig-height: 7
+#| apa-note: Prevalence is defined as the proportion of windows predicted (or annotated) as restrained among all windows. (A) shows the correlation of prevalence between model prediction and human annotation. The black dashed identity line indicates perfect agreement. Each circular symbol represents one session for a specific window length (blue = 4 s, yellow = 16 s, and green = 30 s). (B) shows the difference of prevalence between human annotation and model prediction. A negative prevalence difference indicates the model estimated less amount of time infants were restrained compared to human annotation. The horizontal line in the box denotes the median, the borderlines of the box denotes the first (Q1) quartile and the third (Q3) quartile, and the lines extended denotes the min and max data points within the range of 1.5 IQR (i.e., Q3-Q1).
+
+p_prev_cor <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
+                   mutate(model=recode(model,
+                                       "4_no_pos" = "4 s",
+                                       "16_no_pos" = "16 s",
+                                       "30_no_pos" = "30 s")),
+                 aes(x=prevalence, y=detection_prevalence,
+                     color=model))+
+  geom_point(shape = 16,size = 3, alpha=.3) + 
+  geom_abline(intercept = 0, slope = 1, linetype="dashed", color = "black") +
+  geom_smooth(method = "lm", se = FALSE) +  
+  geom_text(data = table_prev,
+            aes(x = c(1.16,1.16,1.16),
+                y = c(.7,.8,.9),
+                label = paste0("r = ", round(cor,2)),
+                color = model, size = 12), 
+            show.legend = FALSE) +
+  scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
+  scale_x_continuous(limits = c(0,1.2), breaks=c(0,.5,1)) +
+  scale_y_continuous(limits = c(0,1), breaks=c(0,.5,1))+
+  coord_cartesian(clip = "off")+
+  labs(x = "Human annotated prevalence", y = "Model predicted prevalence", color="Window Length")+
+  theme_update()+
+  theme(axis.title.x = element_text(hjust = 0.37),
+        # 1. Tell ggplot to put the legend inside the plotting area
+        legend.position = "inside",
+        
+        # 2. Position it: X = 0.85 (mostly right), Y = 0.2 (near the bottom)
+        # Adjust these numbers between 0 and 1 until it sits perfectly!
+        legend.position.inside = c(0.9, 0.2) 
+  )+
+  # guides(color = "none")+
+  ggtitle("A. Prevalence Correlation")
+
+p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
+                   mutate(model=recode(model,
+                                       "4_no_pos" = "4 s",
+                                       "16_no_pos" = "16 s",
+                                       "30_no_pos" = "30 s")),
+                 aes(x=model, y=(detection_prevalence-prevalence), color=model))+
+  geom_boxplot(width = 0.1, outlier.shape = NA, fill = "white") + 
+  geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
+  scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
+  scale_y_continuous(
+    limits = c(-0.2,0.2),
+    breaks = c(-0.2, -0.1, 0, 0.1, 0.2)
+  )+
+  labs(x="Window Length", y="Prevalence Difference (Model-Human)", color="Window Length")+
+  theme_update()+
+  guides(color = "none")+
+  theme(legend.position = c(0.5,0.9),legend.direction = "horizontal")+
+  ggtitle("B. Prevalence Difference")
+
+# summary(lm(data=matrix_comb %>% filter(positive_class=="r") , prevalence_df ~ model))
+
+(p_prev_cor/p_prev_gap) 
+```
+
 ```{r fig-cibtwctg}
-#| fig-cap: Differences in sensitivity and PPV between restrained and unrestrained prediction according to window length
+#| fig-cap: Differences in Sensitivity and PPV Between Restrained and Unrestrained Prediction According to Window Length
 #| fig-width: 8
 #| fig-height: 5
-#| apa-note: Each vertical line indicates the 95% CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference (restrained - unrestrained).
+#| apa-note: Each vertical line indicates the 95% CI of the metric's difference between restrained prediction and unrestrained prediction. The dot on each line denotes the mean of the difference.
 
 p_ci_sen <- ggplot (table_btw_ctg %>% 
                       filter(Metric=="Sensitivity"),
@@ -522,115 +856,22 @@ p_ci_ppv <-ggplot (table_btw_ctg %>%
            size = 1, color = "black")+
   theme_update()
 
+matrix_df <- matrix_comb %>% 
+  select(model, id, session, positive_class, sensitivity, pos_pred_value) %>% 
+  pivot_wider(names_from = positive_class, values_from=c("sensitivity", "pos_pred_value")) %>% 
+  mutate(sens_r_minus_u = sensitivity_r-sensitivity_u,
+         ppv_r_minus_u = pos_pred_value_r-pos_pred_value_u) %>% 
+  drop_na()
+
+
+# summary(lm(data=matrix_df,sens_r_minus_u~model))
+# summary(lm(data=matrix_df,ppv_r_minus_u~model))
 (p_ci_sen + p_ci_ppv)
 ```
 
 ```{r}
-# Table. Model predicted and human annotated prevalence of restrained periods, their correlation, and differences
-df_prev <- matrix_comb %>%
-  filter(positive_class=="r") %>%
-  select(model, id, session, detection_prevalence, prevalence) %>% 
-  mutate(gap = detection_prevalence-prevalence)
-
-prev_gap <- map(model_labels, ~ bootstrap_gap(df = df_prev %>% filter(model == .x), metric = "gap", gap_cal = T))
-
-table_prev <- df_prev %>%
-  group_by(model) %>%
-  summarise(actual_prev = mean(prevalence),
-            prev = mean(detection_prevalence),
-            cor = cor (detection_prevalence, prevalence),
-            .groups = "drop") %>% 
-  mutate(gap = map(prev_gap, ~ tibble(
-    mean_gap = .x$mean_gap,
-    ci_low   = .x$ci[1],
-    ci_high  = .x$ci[2]))) %>%
-  unnest(gap) %>% 
-  mutate(model=recode(model,
-                      "4_no_pos" = "4 s",
-                       "16_no_pos" = "16 s",
-                       "30_no_pos" = "30 s"))
-
-# table_prev_100 <- table_prev %>% 
-#   mutate(actual_prev=actual_prev*100,
-#          prev = prev*100, 
-#          mean_gap = mean_gap *100,
-#          ci_low=ci_low * 100,
-#          ci_high=ci_high*100) %>% 
-#   mutate(ci = paste0("[",round(ci_low, 2),", ", round(ci_high, 2), "]" )) %>% 
-#   select(-ci_low, -ci_high, -actual_prev, -prev) %>% 
-#   rename("Window Length" = "model",
-#          "Correlation (r)" = "cor",
-#          "M" = "mean_gap",
-#          "95%CI" = "ci")
-# 
-# table_flex_prev <- table_prev_100 %>% 
-#   flextable() %>% flextable::theme_apa() %>% line_spacing(part = "all") %>% 
-#   fix_border_issues() %>% 
-#   add_header_row(values = c("","Prediction Error (%)"), colwidths = c(2,2)) %>% 
-#   hline(i = c(1,2,3)) %>% 
-#   padding(padding.top = 2, padding.bottom = 2) %>% 
-#   set_table_properties(layout = "autofit", width = .99) %>% 
-#   align(align = "center", part = "all")
-# table_flex_prev
-```
-
-```{r fig-prevalencegap}
-#| fig-cap: Agreement between model-predicted and human annotated prevalence of restraint
-#| fig-width: 8
-#| fig-height: 4
-#| apa-note: Prevalence is defined as the proportion of windows predicted (or annotated) as restrained among all windows. (A) shows the correlation of prevalence between model prediction and human annotation. The black dashed identity line indicates perfect agreement. Each circular symbol represents one session for a specific window length (denoted by color). (B) shows the difference of prevalence between human annotation and model prediction (i.e., prediction error). A negative prediction error indicates the model estimated less amount of time infants were restrained compared to human annotation. The horizontal line in the box denotes the median; the borderlines of the box denotes the first (Q1) quartile and the third (Q3) quartile; and the lines extended denotes the min and max data points within the range of 1.5 IQR (i.e., Q3-Q1).
-
-p_prev_cor <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
-                   mutate(model=recode(model,
-                                       "4_no_pos" = "4 s",
-                                       "16_no_pos" = "16 s",
-                                       "30_no_pos" = "30 s")),
-                 aes(x=prevalence, y=detection_prevalence,
-                     color=model))+
-  geom_point(shape = 16,size = 3, alpha=.3) + 
-  geom_abline(intercept = 0, slope = 1, linetype="dashed", color = "black") +
-  geom_smooth(method = "lm", se = FALSE) +  
-  geom_text(data = table_prev,
-            aes(x = c(1.16,1.16,1.16),
-                y = c(.7,.8,.9),
-                label = paste0("r = ", round(cor,2)),
-                color = model, size = 12), 
-            show.legend = FALSE) +
-  scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
-  scale_x_continuous(limits = c(0,1.2), breaks=c(0,.5,1)) +
-  scale_y_continuous(limits = c(0,1), breaks=c(0,.5,1))+
-  coord_cartesian(clip = "off")+
-  labs(x = "Human annotated prevalence", y = "Model predicted prevalence")+
-  theme_update()+
-  theme(axis.title.x = element_text(hjust = 0.37))+
-  guides(color = "none")+
-  ggtitle("A. Prevalence Correlation")
-
-p_prev_gap <- ggplot(data=matrix_comb %>% filter(positive_class=="r") %>%
-                   mutate(model=recode(model,
-                                       "4_no_pos" = "4 s",
-                                       "16_no_pos" = "16 s",
-                                       "30_no_pos" = "30 s")),
-                 aes(x=model, y=(detection_prevalence-prevalence)*100, color=model))+
-  geom_boxplot(width = 0.1, outlier.shape = NA, fill = "white") + 
-  geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
-  scale_color_manual(values=model_colors, labels=c("4 s", "16 s","30 s")) +
-  scale_y_continuous(
-    limits = c(-20,20),
-    breaks = c(-20, -10, 0, 10, 20)
-  )+
-  labs(x="Window Length", y="Prediction Error (%)", color="Window Length")+
-  theme_update()+
-  theme(legend.position = c(0.5,0.9),legend.direction = "horizontal")+
-  ggtitle("B. Prevalence Offset")
-
-(p_prev_cor+p_prev_gap)
-
-```
-
-```{r}
-#| eval: false
-#| include: false
+#| eval: FALSE
+#| include: FALSE
 # check if the data set is imbalanced 
 matrix_comb %>% 
   filter(positive_class=="r") %>% 
@@ -647,8 +888,8 @@ ggplot(matrix_comb %>% filter(positive_class=="r"), aes(x = prevalence, color=mo
 ```
 
 ```{r}
-#| eval: false
-#| include: false
+#| eval: FALSE
+#| include: FALSE
 # check accuracy outliers 
 outlier_4 <- matrix_comb %>%
   filter(model == "4_no_pos", positive_class=="r") %>%
@@ -684,29 +925,38 @@ ggplot(data=outliers, aes(x=session, y=id, color=model))+
             size = 3) 
 ```
 
+@fig-timeline shows an exemplar timeline of restraint from one session, comparing human ground-truth annotation with model predictions across the three window lengths. Overall, the model showed strong agreement with human annotation. To quantify this agreement, we calculated the model performance metrics, which were then averaged across sessions.
+
 ### Overall Model Performance
 
-@tbl-indexbetweenmodels shows that all window lengths reached high accuracy (`r apa_num(table_btw_mdl[1,3])` for 4 s, `r apa_num(table_btw_mdl[1,4])` for 16 s, and `r apa_num(table_btw_mdl[1,5])` for 30 s), and good kappa values (`r apa_num(table_btw_mdl[2,3])` for 4 s, `r apa_num(table_btw_mdl[2,4])` for 16 s, and `r apa_num(table_btw_mdl[2,5])` for 30 s). All window lengths presented high sensitivity—how often the model correctly detected when the infant was actually restrained or unrestrained—ranging from `r apa_num(min(table_btw_mdl[3,3:5]))` to `r apa_num(max(table_btw_mdl[3,3:5]))` for restrained prediction, and `r apa_num(min(table_btw_mdl[4,3:5]))` to `r apa_num(max(table_btw_mdl[4,3:5]))` for unrestrained prediction. All window lengths had high positive predictive value (PPV)—how often the model’s predictions of being restrained or unrestrained were correct—ranging from `r apa_num(min(table_btw_mdl[5,3:5]))` to `r apa_num(max(table_btw_mdl[5,3:5]))` for restrained prediction, and `r apa_num(min(table_btw_mdl[6,3:5]))` to `r apa_num(max(table_btw_mdl[6,3:5]))` for unrestrained prediction. All window lengths also had high F1 scores—a balanced measure that combines sensitivity and PPV—ranging from `r apa_num(min(table_btw_mdl[7,3:5]))` to `r apa_num(max(table_btw_mdl[7,3:5]))` for restrained prediction, and `r apa_num(min(table_btw_mdl[8,3:5]))` to `r apa_num(max(table_btw_mdl[8,3:5]))` for unrestrained prediction. Moreover, the three window lengths did not significantly differ for any of the metrics (*p*s $\ge$ `r apa_num(min(table_btw_mdl[1:8,8]))`).
+@tbl-indexbetweenmodels shows that all window lengths reached high accuracy (`r apa_num(table_btw_mdl[1,3])` for 4 s, `r apa_num(table_btw_mdl[1,4])` for 16 s, and `r apa_num(table_btw_mdl[1,5])` for 30 s), and high kappa values (`r apa_num(table_btw_mdl[2,3])` for 4 s, `r apa_num(table_btw_mdl[2,4])` for 16 s, and `r apa_num(table_btw_mdl[2,5])` for 30 s). For both categories, all window lengths presented high sensitivity (`r apa_num(min(table_btw_mdl[3,3:5]))`\~`r apa_num(max(table_btw_mdl[3,3:5]))` for restrained, and `r apa_num(min(table_btw_mdl[4,3:5]))`\~`r apa_num(max(table_btw_mdl[4,3:5]))` for unrestrained), high PPV (`r apa_num(min(table_btw_mdl[5,3:5]))`\~`r apa_num(max(table_btw_mdl[5,3:5]))` for restrained, and `r apa_num(min(table_btw_mdl[6,3:5]))`\~`r apa_num(max(table_btw_mdl[6,3:5]))` for unrestrained), and high F1 scores (`r apa_num(min(table_btw_mdl[7,3:5]))`\~`r apa_num(max(table_btw_mdl[7,3:5]))` for restrained, and `r apa_num(min(table_btw_mdl[8,3:5]))`\~`r apa_num(max(table_btw_mdl[8,3:5]))` for unrestrained). Moreover, the three window lengths did not significantly differ for any of the metrics (*p*s $\ge$ `r apa_num(min(table_btw_mdl[1:8,8]))`).
 
-@fig-prevalencegap A shows that, at the session level, all window lengths provided reliable estimates of restrained time. We defined prevalence as the proportion of windows classified as restrained among all windows for each session. The prevalence predicted by the model was highly correlated with the prevalence annotated by human coders (*r* = `r apa_num(table_prev[1,4])` for 4 s, *r* = `r apa_num(table_prev[2,4])` for 16 s, and *r* = `r apa_num(table_prev[3,4])` for 30 s). Thus, model predictions are suitable for capturing individual differences in restrained time between infants.
+At the session level, all three window lengths also provided reliable estimates of the overall restrained time as compared to human annotation (@fig-prevalencegap A), as the prevalence predicted by the model was highly correlated with the prevalence annotated by human coders (*r* = `r apa_num(table_prev[1,4])` for 4 s, *r* = `r apa_num(table_prev[2,4])` for 16 s, and *r* = `r apa_num(table_prev[3,4])` for 30 s). Thus, model predictions are suitable for capturing individual differences in overall restrained time across infants.
 
-### Models Were Biased Toward Predicted Unrestrained
+### Model Bias Toward Predicting Unrestrained Periods
 
-Despite the overall strong accuracy, models using all three window lengths were biased towards predicting that infants were unrestrained rather than restrained. @fig-cibtwctg shows the difference of sensitivity and PPV between restrained class and unrestrained class within a single window length. Larger difference scores (away from 0) indicate larger asymmetry in predicting one category rather than the other. @fig-cibtwctg A shows that the sensitivity difference for 4 s window was `r apa_num(table_btw_ctg[1,3])`, 95% bootstrapped CI \[`r apa_num(table_btw_ctg[1,4])`, `r apa_num(table_btw_ctg[1,5])`\], for 16 s window was `r apa_num(table_btw_ctg[3,3])`, 95% CI \[`r apa_num(table_btw_ctg[3,4])`, `r apa_num(table_btw_ctg[3,5])`\], and for 30 s window was `r apa_num(table_btw_ctg[5,3])`, 95% CI \[`r apa_num(table_btw_ctg[5,4])`, `r apa_num(table_btw_ctg[5,5])`\]. The negative difference scores for sensitivity across all window lengths indicate that the model was more sensitive in detecting the unrestrained class compared to restrained class regardless of window length. @fig-cibtwctg B shows that the PPV difference for 4 s window was `r apa_num(table_btw_ctg[2,3])`, 95% CI \[`r apa_num(table_btw_ctg[2,4])`, `r apa_num(table_btw_ctg[2,5])`\], for 16 s window was `r apa_num(table_btw_ctg[4,3])`, 95% CI \[`r apa_num(table_btw_ctg[4,4])`, `r apa_num(table_btw_ctg[4,5])`\], and for 30 s window was `r apa_num(table_btw_ctg[6,3])`, 95% CI \[`r apa_num(table_btw_ctg[6,4])`, `r apa_num(table_btw_ctg[6,5])`\]. The positive differences of PPV across all window lengths indicate that the model’s prediction of restrained periods was more credible compared to its prediction of unrestrained periods. Notably, while none of the window lengths were free from bias, the 30 s window presented smaller offsets of metric values between restrained and unrestrained detection.
+Despite the overall strong accuracy, the model was biased towards predicting more unrestrained periods than restrained periods, regardless of the window length. @fig-prevalencegap B shows that even though the model predicted prevalence highly correlated with the ground truth, the model tended to underestimate the occurrences of restrained periods. To quantify this bias, we calculated the prevalence difference by subtracting human-annotated restraint prevalence from model-predicted restraint prevalence. Thus, negative values indicate underestimation by the model. The prevalence difference was `r apa_num(table_prev[1,5]*100)`% for the 4 s window, 95% CI \[`r apa_num(table_prev[1,6]*100)`%, `r apa_num(table_prev[1,7]*100)`%\]; `r apa_num(table_prev[2,5]*100)`% for the 16 s window, 95% CI \[`r apa_num(table_prev[2,6]*100)`%, `r apa_num(table_prev[2,7]*100)`%\]; and `r apa_num(table_prev[3,5]*100)`% for the 30 s window, 95% CI \[`r apa_num(table_prev[3,6]*100)`%, `r apa_num(table_prev[3,7]*100)`%\]. Although the prevalence difference was not significantly different between the three window lengths (*F*(2, 423) = 1.82, *p* = .16), the 30 s window presented a slightly smaller prevalence difference.
 
-The prediction bias was also evident when examining the model’s overall estimate of restrained time and its difference from human annotation. @fig-prevalencegap B shows that the model predictions consistently underestimated overall restrained time compared to human annotation, despite the high correlation between the two. We defined prediction error as the model predicted prevalence (in units of % of recording time) subtracted by the human annotated prevalence of restrained periods (in units of % of recording time). The 4 s window had a prediction error of `r apa_num(table_prev[1,5]*100)`%, 95% CI \[`r apa_num(table_prev[1,6]*100)`%, `r apa_num(table_prev[1,7]*100)`%\], the 16 s window of `r apa_num(table_prev[2,5]*100)`%, 95% CI \[`r apa_num(table_prev[2,6]*100)`%, `r apa_num(table_prev[2,7]*100)`%\], and the 30 s window of `r apa_num(table_prev[3,5]*100)`%, 95% CI \[`r apa_num(table_prev[3,6]*100)`%, `r apa_num(table_prev[3,7]*100)`%\].
+Category-specific metrics further demonstrated this bias. @fig-cibtwctg shows the differences in sensitivity and PPV between the restrained and unrestrained categories. The model was less sensitive in detecting true restrained periods than in detecting true unrestrained periods, as shown by the negative value when subtracting the sensitivity of unrestrained prediction from restrained prediction (@fig-cibtwctg A). The sensitivity difference was `r apa_num(table_btw_ctg[1,3])` for the 4 s window, 95% CI \[`r apa_num(table_btw_ctg[1,4])`, `r apa_num(table_btw_ctg[1,5])`\]; `r apa_num(table_btw_ctg[3,3])` for the 16 s window, 95% CI \[`r apa_num(table_btw_ctg[3,4])`, `r apa_num(table_btw_ctg[3,5])`\]; and `r apa_num(table_btw_ctg[5,3])` for the 30 s window, 95% CI \[`r apa_num(table_btw_ctg[5,4])`, `r apa_num(table_btw_ctg[5,5])`\]. The sensitivity difference was not significantly different between the three window lengths (*F*(2, 418) = 2.80, *p* = .06). Meanwhile, the model predicted restrained periods were more credible than the predicted unrestrained periods, as shown by the positive value when subtracting the PPV of unrestrained prediction from restrained prediction (@fig-cibtwctg B).The PPV difference was `r apa_num(table_btw_ctg[2,3])` for the 4 s window , 95% CI \[`r apa_num(table_btw_ctg[2,4])`, `r apa_num(table_btw_ctg[2,5])`\]; `r apa_num(table_btw_ctg[4,3])` for the 16 s window, 95% CI \[`r apa_num(table_btw_ctg[4,4])`, `r apa_num(table_btw_ctg[4,5])`\]; and `r apa_num(table_btw_ctg[6,3])` for the 30 s window, 95% CI \[`r apa_num(table_btw_ctg[6,4])`, `r apa_num(table_btw_ctg[6,5])`\]. The PPV difference was not significantly different between the three window lengths (*F*(2, 418) = 0.26, *p* = .77).
 
-Across the metrics of sensitivity, PPV, and prediction error, 30 s turned out to be the best window length out of the three, which brought about the most balanced performance across restrained and unrestrained classes.
+However, although differences among window lengths were not statistically significant, the 30 s window showed the most favorable descriptive pattern, with the smallest prevalence difference of restraint compared with human annotation and the smallest category asymmetry in sensitivity and PPV. We therefore selected the 30-s window as the optimal window length for full-day prediction.
 
-## Model Estimate Compared to Previous Studies
+## Model Estimates Replicate Previous Studies
 
 ```{r}
-# exclude sessions where total recording time is <3 hours
-ds_excl <- ds_sum %>% filter(total_time < 3) #11 sessions 
-ds_sum_excl <- ds_sum %>% filter(total_time >=3) #132 sessions left
-ds_sum_excl <- ds_sum_excl %>% 
-  filter(unique_id != "148/1",
-         unique_id != "178/3")
+# exclude sessions where awake time is <3 hours
+ds_sum <- ds_part2 %>% group_by(unique_id, agemo, walker, crawler,sitter, age_group,loc,age_mo) %>%
+  filter(exclude_period == 0, nap_period == 0) %>%
+  summarize(unrestrained_n = sum(as.numeric(unrestrained == "u")),
+            awake_n = n()) %>%
+  mutate(unrestrained_prop = unrestrained_n/awake_n) %>% 
+  mutate(restrained_prop = 1-unrestrained_prop) %>% 
+  ungroup() %>%  
+  mutate(awake_time = awake_n*15/60/60) %>% 
+  separate(unique_id, into = c("subj", "sess"), sep = "/", remove = FALSE, convert = TRUE)
+
+ds_excl <- ds_sum %>% filter(awake_time < 3) #11 sessions 
+ds_sum_excl <- ds_sum %>% filter(awake_time >=3) #133 sessions left
 
 stats_fullday <- ds_sum_excl %>% 
   group_by(age_group) %>% 
@@ -717,18 +967,25 @@ stats_fullday <- ds_sum_excl %>%
 ```
 
 ```{r fig-agechange}
-#| fig-cap: Younger versus older infants’ full day restrained time (as a proportion of awake time) 
+#| fig-cap: Younger Versus Older Infants’ Full-Day Restrained Time
 #| fig-width: 5
 #| fig-height: 4
-#| apa-note: Each point denotes one session. The horizontal red line denotes the group mean of restrained time proportion.
+#| apa-note: Each circle denotes one session. The horizontal red line denotes the group mean of restrained time proportion (out of awake time).
 
-t_age <- summary(lm(restrained_prop ~ age_group, data = ds_sum_excl))$coefficients # t test
+# psych::describe(ds_sum_excl$total_time)
+t_age <- summary(lm(restrained_prop ~ age_group,
+                     data = ds_sum_excl))$coefficients # multilevel regression
+lm_age <- summary(lmerTest::lmer(restrained_prop ~ age_group + (1|subj), 
+                     data = ds_sum_excl %>% 
+                       mutate(subj = as.integer(str_extract(unique_id, "^\\d+")))))$coefficients # multilevel regression
+# t_age
+# lm_age
 
 p_age <- ggplot(ds_sum_excl, aes(x=age_group, y=restrained_prop)) +
   geom_jitter(width=.2, shape = 1,size = 3, color="black") + 
   stat_summary(fun = mean, geom = "crossbar",
                width = 0.4, color = "red") +
-  scale_y_continuous(name = "Restrained time proportion of awake time", breaks = seq(0, 1, .25), limits = c(0,1))+
+  scale_y_continuous(name = "Restrained Time (Prop. of Awake Time)", breaks = seq(0, 1, .25), limits = c(0,1))+
   theme_update()+
   labs(x="Age Group")
 
@@ -736,39 +993,45 @@ p_age
 
 ```
 
-We applied the best model based on the analyses in the previous section (30-s window length) to create full-day predictions for all sessions that included full-day recording. We excluded eleven sessions whose recording time was less than 3 hours, which were useful for training and validating the models but insufficient for measuring day-long experience. We also excluded another two sessions where the family took the garment off for a substantial portion of time but did not log the time stamp of removal. The remaining 129 sessions had an average recording time of `r apa_num(mean(ds_sum_excl$total_time))` hours (*SD* = `r apa_num(sd(ds_sum_excl$total_time))`).
+We applied the model with the 30 s window length to the full-day recording for all sessions. We excluded eleven sessions whose recording time was less than 3 hours, which were useful for training and validating the models but insufficient for measuring day-long experiences. We also excluded another two sessions where the family took the garment off for a substantial portion of time but did not log the time stamp of removal. In the remaining 133 sessions, infants had an average awake time of `r apa_num(mean(ds_sum_excl$awake_time))` hours (*SD* = `r apa_num(sd(ds_sum_excl$awake_time))`).
 
-Model predicted restrained and unrestrained time converged with previous studies [@Carson2022n]. Younger infants aged from 4 to 7 months spent *M* = `r apa_num(stats_fullday[1,2]*100)`% (*SD* = `r apa_num(stats_fullday[ 1,3]*100)`%) of awake time restrained, and older infants aged from 11 to 14 months spent *M* = `r apa_num(stats_fullday[2,2]*100)`% (*SD* = `r apa_num(stats_fullday[2,3]*100)`%) of awake time restrained. Moreover, @fig-agechange shows a significant group difference in restrained time between older infants and younger infants (*t* = `r apa_num(t_age[2,3])`, *p* `r apa_num(ifelse(t_age[2,4] < .001, "<.001", t_age[2,4]))`), supporting the convergent validity of the current system.
+Model-estimated restrained time converged with previous studies [@Carson2022n; @Franchak2024l]. Younger infants aged from 4 to 7 months spent *M* = `r apa_num(stats_fullday[1,2]*100)`% (*SD* = `r apa_num(stats_fullday[ 1,3]*100)`%) of awake time restrained, and older infants aged from 11 to 14 months spent *M* = `r apa_num(stats_fullday[2,2]*100)`% (*SD* = `r apa_num(stats_fullday[2,3]*100)`%) of awake time restrained. Moreover, @fig-agechange shows a significant group difference in restrained time between older infants and younger infants (*b* = -0.21, *SE* = 0.03, *p* \< .001), supporting the convergent validity of the current system.
 
 # Discussion
 
-In the current study, we developed and validated a machine learning algorithm to detect infants’ restrained experiences from wearable sensors during home life. The model presented high accuracy and substantial kappa agreement compared to human-annotated ground truth, which are comparable to other wearable sensor algorithms classifying other infant movement categories in the home [@Airaksinen2020j; @Airaksinen2024z; @Franchak2024e; @Yao2019q]. The model presented a slight bias towards predicted unrestrained—the model tended to overestimate unrestrained periods but was not as credible when labeling a period as unrestrained. The bias might be due to the inherent imbalance in the training data set where unrestrained periods were more prevalent than restrained periods, indicated by human annotated prevalence. Using a longer window length (i.e., 30 s, rather than 16 s or 4 s) mitigated but did not eliminate the prediction bias. Ultimately, the model with 30 s window length presented convergent validity in overall estimate of restraint time and age-related change compared with previous findings [@Carson2022n].
+In the current study, we developed and validated a machine learning algorithm to detect infants’ restrained experiences from wearable sensors in the home environment. The model presented high accuracy and substantial kappa agreement compared to human-annotated ground truth, which are comparable to other wearable sensor algorithms classifying other infant movement categories in the home [@Airaksinen2020j; @Airaksinen2024z; @Franchak2024e; @Yao2019q]. The model presented a slight bias towards unrestrained—the model tended to overestimate unrestrained periods, but was not as credible when labeling a period as unrestrained. The bias might be due to the inherent imbalance in the training set where unrestrained periods were more prevalent than restrained periods, indicated by human annotated prevalence (@fig-groundtruth). Using a longer window length (i.e., 30 s, rather than 16 s or 4 s) mitigated but did not eliminate the prediction bias. Ultimately, the model with 30 s window length presented convergent validity in the overall estimate of restrained time and age-related decrease aligned with previous findings [@Carson2022n; @Franchak2024l].
 
-Why could a longer window length (i.e., 30 s) provide more balanced detection? One explanation is that a longer window length can better capture the contextual information of restraint. Consider the contextual nature of restraint: infants may exhibit similar body movement whether restrained or not for most of the time, but one subtle occurrence of distinctive movement can signal restraint. For example, an infant can be sitting on the floor unrestrained, on a caregiver’s lap restrained, or strapped in a seat restrained. It is hard to distinguish if the infant is restrained while sitting still, but when the infant moves their limbs, restraint may present differences, such as a stronger damping in the motion decay because the support (i.e., caregiver’s laps, or seats) absorbs the motion. These differences only present themselves in the episodes of movement, not throughout the whole period. A longer window length has a better chance to capture the episodes. Another explanation is that a longer window length can improve generalization across a variety of restraint forms. Infants can be restrained in various ways—such as in stationary seats, jumpers, swings, or caregivers’ arms, either still or while being carried around. Different restraint forms are presented by different motion features. By encompassing a broader range of movement patterns, a longer window can provide more informative and generalizable features for the model to account for variability within the restrained class. Given a restrained bout usually lasts minutes rather than seconds, a 30 s window length presents a good balance.
+Why could a longer window length (i.e., 30 s) provide more balanced detection? One explanation is that a longer window length can better capture the contextual information of restraint. Consider the contextual nature of restraint: infants may exhibit similar body movement whether restrained or not for most of the time, but one subtle occurrence of distinctive movement can signal restraint. For example, an infant can be sitting on the floor unrestrained, on a caregiver’s lap restrained, or strapped in a seat restrained. It is hard to distinguish if the infant is restrained while sitting still, but when the infant moves their limbs, restraint may present differences, such as a stronger damping in the motion decay because the support (i.e., caregiver’s laps, or seats) absorbs the motion. These differences only present themselves in the episodes of movement, not throughout the whole period. Thus, a longer window length has a better chance of capturing the episodes. Another explanation is that a longer window length can improve generalization across a variety of restraint forms. Infants can be restrained in various ways—such as in stationary seats, jumpers, swings, or caregivers’ arms, either still or while being carried around. Different restraint forms are presented by different motion features. By encompassing a broader range of movement patterns, a longer window can provide more informative and generalizable features for the model to account for variability within the restrained class. Given a restrained bout usually lasts minutes rather than seconds, a 30 s window length presents a good balance.
 
-Our analysis of window length informs future modeling studies to consider temporal resolution as a behavior-informed decision. In infants’ everyday activities, behaviors unfold across various timescales—from second-by-second movement (e.g., locomotion) to longer periods of states (e.g., on the ground vs. lifted). Our optimal window length for restraint detection turns out to be longer than the window lengths in other models for body position classification [@Airaksinen2020j; @Franchak2021k; @Franchak2024e; @Yao2019q], corresponding to the fact that restraint bouts last longer than position bouts. We recommend selecting window lengths that align with typical duration and transition of the targeted behavior for machine learning modeling.
+Our analysis of window length informs future modeling studies to consider temporal resolution as a behavior-informed decision. In infants’ everyday activities, behaviors unfold across various timescales—from second-by-second movement (e.g., locomotion) to longer periods of states (e.g., on the ground vs. lifted). Our optimal window length for restraint detection turns out to be longer than the window lengths in other models for body position classification [@Airaksinen2020j; @Franchak2021k; @Franchak2024e; @Yao2019q], corresponding to the fact that restrained bouts last longer than position bouts. We recommend selecting window lengths that align with the typical duration and transition of the targeted behavior for machine learning modeling.
+
+We also inspected the top-ranked features in the model, which suggests that restraint classification relied on the signals from all four sensors, from both accelerometers and gyroscopes, and from various kinds of motion feature calculation (e.g., mean, median, SD, 75th percentile, correlation between sensors, magnitude). The top 10 features for each window length are reported in Appendix A. However, the feature ranking should be interpreted cautiously. It does not mean other features were not important, since a large number of total features (436) is likely to contain strong correlations between similar features. In addition, it should not be interpreted as evidence that the top-ranked features alone would be sufficient for model training. What the feature ranking does suggest is to use multiple sensors, use both sensor modalities, and incorporate different features, corroborating with previous work [@Airaksinen2025l; @Franchak2024e].
 
 ## Advances in Methodology
 
-The key contribution of this work is introducing a novel approach for measuring infant restraint in the home environment using wearable sensors. Wearable sensors offer several advantages over previous methods when quantifying day-long movement in naturalistic settings. Compared with survey methods, wearable sensors provide objective, continuous measurements with fine-grained temporal resolution. Compared with video recording and human coding method, wearable sensors are less obtrusive and enable substantially longer recordings. With the machine learning model established, researchers can extend their investigation timescales to a full day or even multiple days at low cost. Although the current machine learning model achieves slightly lower accuracy (89%) than human annotation (99%), the trade-off between accuracy and human labor favors our sensor approach—especially when the target behavior fluctuates over longer timescales beyond the practical limits of human coding. Restraint is such a behavior that does not recur repeatedly every hour but follows the rhythm of everyday routines and activities. Therefore, a wearable sensor system capable of generating restraint profiles across full days offers greater scalability for measuring infants’ everyday experiences.
+The key contribution of this work is introducing a novel approach for measuring infant restraint in the home environment using wearable sensors. Wearable sensors offer several advantages over previous methods when quantifying day-long movement in naturalistic settings. Compared with survey methods, wearable sensors provide objective, continuous measurements with fine-grained temporal resolution. Compared with video recording and human coding method, wearable sensors are less obtrusive and enable substantially longer recordings. With the machine learning model established, researchers can extend their investigation timescales to a full day or even multiple days at low cost. Although the current machine learning model achieves slightly lower accuracy (89%) than human annotation (99%), the trade-off between accuracy and human labor favors the sensor approach—especially when the target behavior fluctuates over longer timescales beyond the practical limits of human coding. Restraint is such a behavior that does not recur repeatedly every hour but follows the rhythm of daily routines and activities. Therefore, a wearable sensor system capable of generating restraint profiles across full days offers greater scalability for measuring infants’ everyday experiences.
 
-The current work also demonstrates that wearable sensors have the potential to characterize other categories of infant movement that might interest researchers in a variety of domains. Compared with previous works that classify infants’ positions [@Airaksinen2020j; @Airaksinen2024z; @Franchak2021k; @Franchak2024e; @Yao2019q], restraint might be the most challenging one out of all categories, because the motion between classes can be very similar—such as sitting on the ground versus sitting on a caregiver’s lap. In contrast, positions usually have distinctive motion features between classes—such as the legs’ moving direction in supine position versus upright position. Our results, however, showed that even a context-dependent category such as restraint can be successfully classified by machine learning models using sensor data. Conceivably, this system might perform comparably well or better in classifying other context-independent categories, such as locomotion, steps, falling, etc. Future research needs to further develop the potential of wearable sensors. If proven feasible, the new models will substantially reduce the need for human labor in coding and enlarge the data scale.
+However, it is important to note that the current model should not be treated as a fixed model that can be directly applied to different scenarios. As noted by @deBarbaro2026q, machine learning models are constrained by their training data. Thus, the strong performance on the current dataset does not guarantee a comparable performance on new datasets. Applying the model to new populations or new settings (e.g., different inertial sensor brands) will require a certain amount of human coding that includes different forms of restraint in the targeted dataset. In addition, the model may need to be re-tuned when applied to new restrained forms it has not encountered before. For example, some cultures involve distinctive forms of restraint, such as the Tajik “gahvora” [@Karasik2018t], Tseltal slings that may either fully wrap the infant or leave the head and torso free [@Casey2026u], and the use of sandbags or heavy blankets in other contexts [@Adolph2010p; @Super1986a]. These forms of restraint may produce hip and ankle movement patterns that were not represented in the current dataset, and whether the current model can detect them remains uncertain.
 
-Beyond expanding the range of classifiable behaviors, future works should also broaden the scenarios in which wearable sensors are applied. To date, most applications of wearable sensors have been limited to laboratory or in-home environments. Infants’ outdoor experiences remain largely underexplored, whereas outdoor environments provide infants with rich and unique opportunities for learning and exploration [@Schneider2025d; @Herrington1998o; @Fjortoft2000o]. How much time do infants spend restrained in strollers, car seats, or in carriers worn by caregivers? Which positions are they frequently in when restrained out of the house? Validating sensor-based models in outdoor scenarios can open new avenues for investigation.
-
-Moving forward, future works can also integrate different categories of model predictions to generate a multifaceted description of infant real-time experiences. For example, by combing the model prediction of infant positions (i.e., supine, prone, sitting, upright, holding and carrying) with the current model prediction of overall restraint, researchers can easily know what positions infants were in while restrained—such as supine restrained, sitting restrained, or being held—without spending extra efforts in human coding and model training.
+Moving beyond restraint, researchers should consider using the sensor system to capture a broader repertoire of infant behaviors—such as locomotion, steps, and falls. If proven feasible, the new models will substantially reduce the human labor required to code those behaviors. Furthermore, other than expanding the range of behaviors, future works should also broaden the scenarios in which wearable sensors are applied. To date, most applications of wearable sensors have been limited to laboratory or in-home environments. Infants’ outdoor experiences remain largely underexplored, whereas outdoor environments provide infants with rich and unique opportunities for learning and exploration [@Schneider2025d; @Herrington1998o; @Fjortoft2000o]. How much time do infants spend restrained in strollers, car seats, or in carriers worn by caregivers? Which positions are they frequently in when restrained out of the house? Validating sensor-based models in outdoor scenarios can open new avenues for investigation.
 
 ## Advances in Understanding Full-Day Real-Time Restraint
 
-The advances in methodology can facilitate a deeper understanding of infant full-day real-time restraint experiences. Restraint, as an external factor imposed by caregivers, plays a critical role in infant real-time experiences—influencing when and how often infants have the opportunities for movement, which portions of the environment they can perceive, and what objects and people they can interact with. Prior works provided valuable insights into parental attitudes of restraint and physical activity. For example, parental concerns over floor play, beliefs about physical activity, and practices of co-play are found to be associated with restraint frequency and infants’ physical activity level [@Hanisch2025j; @Hnatiuk2013t; @Prioreschi2017c; @Hesketh2015i; @Karasik2025h]. However, few studies have examined how each restraint decision is formed in real time, and how infants’ sensorimotor experiences are affected in real time.
+The advances in methodology can facilitate a deeper understanding of infants' full-day real-time restrained experiences. When and how to restrain infants is decided and imposed by caregivers, which in turn, shapes infants’ real-time experiences—such as when and how often infants have the opportunities for movement, which portions of the environment they can perceive, and what objects and people they can interact with. Thus, full-day restraint data can be used to answer two complementary questions: what factors shape caregivers’ moment-to-moment restraint decisions, and how do those decisions structure infants’ real-time sensorimotor experiences?
 
-Having a full-day continuous profile of infant restraint is thus essential in identifying the factors influencing restraint decisions in real time. Restraint is believed to serve practical purposes such as safety, transportation, comforting, etc. [@Birken2015s], but these functions alone cannot account for all the variability in when caregivers choose to restrain an infant. To what extent are such decisions influenced by inter-individual factors, such as infant motor skill, attachment style, caregivers’ beliefs, or parental stress? And to what extent are the decisions influenced by socio-cultural factors, such as cultural norms [@Karasik2015i; @Karasik2018t], or socioeconomic status? The current system’s capability of locating each individual bout of restraint enables more fine-grained analyses of caregiver behaviors and provides new insights into the dynamics of everyday caregiving practices.
+Prior works provided valuable insights into broad parental beliefs and attitudes of restraint. For example, parental concerns over floor play, beliefs about physical activity, and practices of co-play are found to be associated with restraint frequency and infants’ physical activity level [@Hanisch2025j; @Hnatiuk2013t; @Prioreschi2017c; @Hesketh2015i; @Karasik2025h]. However, few studies have examined how each restraint decision is formed in real time--when caregivers choose to restrain or release an infant, what immediately precedes those decisions, and how these decisions vary across infants, caregivers, and contexts. For example, restraint decisions may vary with infant characteristics (e.g., motor skill, activity level, attachment style, or emotion expression), caregiver characteristics (e.g., beliefs, stress, habits), family daily routines, and broader socio-cultural factors, such as cultural norms [@Karasik2015i; @Karasik2018t]. By locating each individual bout of restraint, the current system enables researchers to examine restraint not only as a static summary metric, but also as a dynamic caregiving practice embedded in everyday life.
 
-Having a full-day continuous profile of infant restraint is also essential in understanding infant real-time sensorimotor experiences. An overall estimate of restraint time is not enough to examine the mechanisms between restraint practices and developmental outcomes. Take motor development as an example. @Karasik2023d found that Tajik infants fell behind US infants in achieving motor milestones despite the comparable overall restrained time between cultural groups. It is likely due to the prolonged individual restrained bouts in Tajik infants [@Karasik2022a]. The current system allows researchers to characterize the temporal structure of restraint and examine the relationship between restraint and other experiences, such as language, object interaction, and social interaction. A prior study [@Malachowski2023a] found device restraint is associated with reduced adult language input using ecological momentary assessment. However, a continuous, full-day recording of restraint and speech can capture the temporal distribution rather than snapshots. Questions can be answered such as: Does adult word count vary based on the duration of each restraint bout? How are specific language inputs (e.g., referential words) distributed throughout a day based on restraint states and restraint types? Additionally, real-time restraint can also be linked to infants’ self-initiated explorations. For example, how do infants’ own vocalizations, attention, locomotion, or object interactions differ across restrained and unrestrained? In short, continuous, full-day quantification of infant restraint offers a foundation for linking caregiver practices to infants’ moment-to-moment sensorimotor experiences, thereby shaping infants' developmental outcomes.
+On the other hand, a full-day continuous profile of restraint can also help understand how infant real-time sensorimotor experiences are embedded in different restrained and unrestrained periods. An overall estimate of restrained time is not enough to examine the mechanisms between restraint practices and developmental outcomes. Take motor development as an example. @Karasik2023d found that Tajik infants achieved motor milestones later than US infants, even though both groups share comparable amounts of overall restrained time outside of naps [@Karasik2022a]. However, researchers further found that Tajik infants had more prolonged individual restrained bouts [@Karasik2022a], suggesting that how the overall restrained time is distributed across the day is important to investigate. Moreover, restraint timing (i.e., when infants are restrained) can be linked to other real-time experiences, such as speech input and social interaction. Questions can be answered, including what learning opportunities are offered or lost during restrained periods, how the opportunities are distributed across a day, and what distribution is optimal for infant learning. Additionally, restraint timing can also be linked to infants’ self-initiated explorations. More questions can be answered, such as how infants’ own vocalizations, attention, locomotion, or object interactions differ across restrained and unrestrained periods, and whether the opportunities lost in the restrained periods can be compensated in later unrestrained periods. In short, full-day quantification of infant restraint offers a foundation for linking caregiver practices to infants’ moment-to-moment sensorimotor experiences, thereby shaping infants' developmental outcomes.
+
+## Limitations and Future Directions
+
+One limitation of the current study was its reliance on parent reports to exclude infants’ naps and times when the garment was removed. Caregivers may forget to log these periods or may record imprecise times, and we did not have an independent way to verify the accuracy of parent logs. Future work should incorporate objective approaches to improve the identification of these periods. For example, @Bang2023e developed an algorithm to detect sleep periods from LENA (https://www.lena.org/) audio recordings. Although automated detection, like any machine learning predictions, is not perfect, using multiple sources of information—such as caregiver logs, audio-based sleep detection, and sensor-based movement detection—could allow for cross validation and more reliable estimates of infants’ awake wearing time.
+
+Another limitation lies in the lack of contextual information that prevents us from drawing definite developmental conclusions. Restraint takes on various forms, and even the same form of restraint can bring distinct experiences for infants. Detecting *when* restraint happens does not grant knowing *what* experiences occur. For example, an infant placed in a highchair while their caregiver provides face-to-face feeding interaction would receive rich linguistic and social input. In contrast, an infant placed in the same device while the caregiver is occupied with household chores would experience a less stimulating, interactive environment. To map restraint onto broader developmental outcomes, future research should integrate complementary data streams that capture the concurrent situational context. Incorporating multimodal tracking—such as audio recordings and caregiver-infant proximity detection [@Salo2022z]—will provide the vital environmental backdrop needed to fully interpret restrained experiences.
 
 ## Conclusions
 
-To conclude, the current study provided a powerful tool for quantifying infants’ everyday restraint experiences in the home using wearable sensors and machine learning modeling. The model achieved high accuracy and strong agreement with human annotations, as well as convergent validity by showing an age-related decrease in infant restraint time. We explored the window length in the data aggregating procedure of modeling and proved that a longer window enhanced the model’s balanced performance. Together, the current study advanced the method for measuring infant full-day, real-time movement, and opened avenues for research on how restraint imposed by caregivers can shape early development.
+To conclude, the current study provided a powerful tool for quantifying infants’ everyday restrained experiences in the home using wearable sensors and machine learning modeling. The model achieved high accuracy and strong agreement with human annotations, as well as convergent validity by showing an age-related decrease in the overall restrained time. We explored the window length in the modeling procedure and proved that a longer window enhanced the model’s balanced performance. Together, the current study advanced the method for measuring infant full-day, real-time restrained experiences, and opened avenues for research on how restraint imposed by caregivers can shape early development.
 
 # Declarations
 
@@ -801,3 +1064,87 @@ Sensor data and video recordings are publicly shared on Databrary (Franchak, 202
 All processing scripts, including model training and validation analyses, are publicly shared on OSF as well (https://osf.io/a698g/overview?view_only=221d1f2bc8d34b5d9838354224d6da8f).
 
 # References
+
+# Appendix
+
+```{r}
+# get the ordered features
+feature_importance <- function(window) {
+  full_file_names <- dir(paste0("feature_importance_",window, "s"), full.names = TRUE)
+  ds <- data.frame()
+  for (file in full_file_names){
+    temp <- read_csv(file) %>% 
+      mutate(unique_id=sub("_feature_importance\\.csv", "", basename(file)))
+    ds <- rbind(ds,temp)
+  }
+  sum <- ds %>% 
+    group_by(feature) %>% 
+    summarize(mean=mean(impurity_importance),
+              .groups="drop") %>% 
+    arrange(desc(mean))
+  # ggplot(data=sum, aes(x=reorder(feature, -mean), y=mean))+
+  #   geom_bar(stat = "identity")+
+  #   theme(axis.text.x  = element_blank())+
+  #   labs(x="Features", y="M of feature importance")
+  # ggsave(paste0("feature_dist",window,".png"))
+  
+  return (sum)
+}
+
+order4<-feature_importance("4") %>% rename("mean4"="mean") %>% 
+  mutate(order4 = row_number())
+order16<-feature_importance("16") %>% rename("mean16"="mean")%>% 
+  mutate(order16 = row_number())
+order30<-feature_importance("30") %>% rename("mean30"="mean")%>% 
+  mutate(order30 = row_number())
+
+order <-  order30 %>% 
+  full_join(order16, by = "feature") %>% 
+  full_join(order4, by = "feature") %>% 
+  mutate(across(everything(), ~replace_na(.x, 0))) # ordered by 30s window 
+```
+
+```{r fig-feature}
+#| eval: FALSE
+#| include: FALSE
+#Feature Importance by Window Length
+#Feature plotted include the top 10 features for each of the three window lengths out of the total 436 features. Each bar represents one feature. Feature names use the following abbreviation to indicate the location, sensor, and axis: “la” stands for left ankle, “ra” stands for right ankle, “lh” stands for left hip, and “rh” stands for right hip. “acc” stands for “accelerometer” and “gyr” stands for “gyroscope”. “x” “y” and “z” are axes in accelerometer or gyroscope. The features are ordered along the x-axis based on their importance in the 30 s window model. The bars with red outline are the top 10 features for each window length.
+
+
+# plot top 10 features
+p30<-ggplot(data=order %>% slice(1:23)%>% mutate(top10 = order30 <= 10), 
+            aes(x=reorder(feature, -mean30) , y=mean30))+
+  geom_bar(stat="identity",aes(color = top10), fill="#009E73",linewidth = 1)+
+  labs(x="Feature", y="M of Impurity Importance", title="Window length: 30s")+
+  scale_y_continuous(limits=c(0,0.02), breaks=c(0,0.005, 0.010, 0.015, 0.020))+
+  scale_color_manual(values = c("TRUE" = "maroon", "FALSE" = "#009E73"),
+    guide = "none") +
+  theme_update()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))
+p30
+
+p16<-ggplot(data=order %>% slice(1:23)%>% mutate(top10 = order16 <= 10), 
+            aes(x=reorder(feature, -mean30) , y=mean16))+
+  geom_bar(stat="identity",aes(color = top10),  fill="#E69F00",linewidth = 1)+
+  labs(x="Feature", y="M of Impurity Importance", title="Window length: 16s")+
+  scale_y_continuous(limits=c(0,0.02), breaks=c(0,0.005, 0.010, 0.015, 0.020))+
+  scale_color_manual(values = c("TRUE" = "maroon", "FALSE" = "#E69F00"),
+                     guide = "none") +
+  theme_update()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))
+p16
+
+p4<-ggplot(data=order %>% slice(1:23) %>% mutate(top10=order4 <= 10), 
+           aes(x=reorder(feature, -mean30) , y=mean4))+
+  geom_bar(stat="identity",aes(color=top10), fill="#0072B2", linewidth = 1)+
+  labs(x="Feature", y="M of Impurity Importance", title="Window length: 4s")+
+  scale_y_continuous(limits=c(0,0.02), breaks=c(0,0.005, 0.010, 0.015, 0.020))+
+  scale_color_manual(values = c("TRUE" = "maroon", "FALSE" = "#0072B2"),
+                     guide = "none")+
+  theme_update()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))
+p4
+
+p30/p16/p4 + plot_layout(guides = "collect", axes = "collect", axis_titles = "collect") & theme(legend.position = "bottom")
+# ggsave("feature_importance.png",width=7, height=7)
+```
